@@ -1,0 +1,120 @@
+<div class="app-container">
+
+    <!-- HEADER MOBILE -->
+    <header class="mobile-header">
+        <h1 class="brand-title">
+            <i class="fas fa-bus"></i> TJ Transport
+        </h1>
+        <button (click)="toggleSidebar()" class="menu-btn">
+            <i class="fas fa-bars"></i>
+        </button>
+    </header>
+
+    <!-- SIDEBAR (Lista de Rutas) -->
+    <aside class="sidebar" [class.open]="isSidebarOpen()">
+        <div class="sidebar-header">
+            <h1>Rutas Tijuana</h1>
+            <p>Sistema de Transporte Público</p>
+        </div>
+
+        <!-- Filtros / Buscador -->
+        <div class="search-container">
+            <div class="search-wrapper">
+                <i class="fas fa-search search-icon"></i>
+                <input type="text" placeholder="Buscar destino (ej. Otay)..." class="search-input"
+                    (input)="filterRoutes($event)" />
+            </div>
+        </div>
+
+        <!-- Lista de Rutas -->
+        <div class="routes-list">
+            @if (isLoading()) {
+            <div class="loading-state">
+                <i class="fas fa-spinner fa-spin loading-icon"></i>
+                <p>Cargando rutas...</p>
+            </div>
+            } @else {
+            @for (route of filteredRoutes(); track route._id || route.id) {
+            <div (click)="selectRoute(route)" class="route-card"
+                [class.active]="(selectedRoute()?._id || selectedRoute()?.id) === (route._id || route.id)"
+                [style.border-left-color]="(selectedRoute()?._id || selectedRoute()?.id) === (route._id || route.id) ? route.color : 'transparent'">
+                <!-- Banda de color decorativa (si no está activo) -->
+                @if((selectedRoute()?._id || selectedRoute()?.id) !== (route._id || route.id)) {
+                <div class="color-strip" [style.backgroundColor]="route.color"></div>
+                }
+
+                <div class="route-content">
+                    <div class="route-header">
+                        <h3 class="route-name">{{ route.name }}</h3>
+                        <span class="route-type">{{ route.type }}</span>
+                    </div>
+                    <!-- Mostramos landmarks -->
+                    <div class="landmarks-container">
+                        @for (mark of route.landmarks?.slice(0, 3); track mark) {
+                        <span class="landmark-tag">{{ mark }}</span>
+                        }
+                        @if (route.landmarks && route.landmarks.length > 3) {
+                        <span class="landmark-more">+{{route.landmarks.length - 3}}</span>
+                        }
+                    </div>
+                </div>
+            </div>
+            } @empty {
+            <div class="empty-state">
+                <i class="fas fa-route empty-icon"></i>
+                <p>No encontramos rutas con ese nombre.</p>
+            </div>
+            }
+            }
+        </div>
+
+        <!-- Footer Sidebar -->
+        <div class="sidebar-footer">
+            <div class="ad-placeholder">
+                Publicidad aquí
+            </div>
+        </div>
+    </aside>
+
+    <!-- OVERLAY para Mobile -->
+    @if (isSidebarOpen()) {
+    <div class="overlay" (click)="toggleSidebar()"></div>
+    }
+
+    <!-- ÁREA DEL MAPA -->
+    <main class="main-content">
+        <div id="map" class="map-container"></div>
+
+        <!-- Tarjeta de Información Flotante -->
+        @if (selectedRoute()) {
+        <div class="info-card" [style.border-color]="selectedRoute()?.color">
+            <div class="info-header">
+                <div>
+                    <span class="info-subtitle">Ruta Seleccionada</span>
+                    <h2 class="info-title">{{ selectedRoute()?.name }}</h2>
+                </div>
+                <button (click)="clearSelection()" class="close-btn">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+
+            <p class="info-description">{{ selectedRoute()?.description }}</p>
+
+            <div class="info-landmarks">
+                <h4 class="landmarks-title"><i class="fas fa-map-signs"></i> Puntos Clave:</h4>
+                <div class="tags-wrapper">
+                    @for (mark of selectedRoute()?.landmarks; track mark) {
+                    <span class="tag">{{ mark }}</span>
+                    }
+                </div>
+            </div>
+
+            <div class="info-actions">
+                <button class="action-btn">
+                    <i class="fas fa-location-arrow"></i> Cómo llegar
+                </button>
+            </div>
+        </div>
+        }
+    </main>
+</div>
