@@ -26,4 +26,9 @@ export class RouteService {
   searchRoutes(query: string): Observable<RouteData[]> {
     return this.http.get<RouteData[]>(`${this.apiUrl}route/search?q=${query}`);
   }
+
+  // Crear una nueva ruta
+  createRoute(route: any): Observable<any> {
+    return this.http.post(`${this.apiUrl}route/`, route);
+  }
 }

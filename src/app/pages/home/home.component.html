@@ -3,76 +3,170 @@
     <!-- HEADER MOBILE -->
     <header class="mobile-header">
         <h1 class="brand-title">
-            <i class="fas fa-bus"></i> TJ Transport
+            <img src="/images/logo.png" alt="Logo" class="brand-logo"> Rutas Tijuana
         </h1>
         <button (click)="toggleSidebar()" class="menu-btn">
             <i class="fas fa-bars"></i>
         </button>
     </header>
 
-    <!-- SIDEBAR (Lista de Rutas) -->
+    <!-- SIDEBAR PRINCIPAL (Contenedor Flex: Riel + Panel) -->
     <aside class="sidebar" [class.open]="isSidebarOpen()">
-        <div class="sidebar-header">
-            <h1>Rutas Tijuana</h1>
-            <p>Sistema de Transporte Público</p>
-        </div>
 
-        <!-- Filtros / Buscador -->
-        <div class="search-container">
-            <div class="search-wrapper">
-                <i class="fas fa-search search-icon"></i>
-                <input type="text" placeholder="Buscar destino (ej. Otay)..." class="search-input"
-                    (input)="filterRoutes($event)" />
+        <!-- 1. RIEL DE NAVEGACIÓN (Izquierda) -->
+        <nav class="nav-rail">
+            <!-- Logo Desktop -->
+            <div class="nav-brand-icon">
+                <img src="/images/logo.png" alt="Logo" class="nav-logo">
             </div>
-        </div>
 
-        <!-- Lista de Rutas -->
-        <div class="routes-list">
-            @if (isLoading()) {
-            <div class="loading-state">
-                <i class="fas fa-spinner fa-spin loading-icon"></i>
-                <p>Cargando rutas...</p>
+            <div class="nav-items">
+                <button class="nav-item" [class.active]="viewMode() === 'viewer'" (click)="setViewMode('viewer')"
+                    title="Ver Rutas">
+                    <div class="nav-icon"><i class="fas fa-map-marked-alt"></i></div>
+                    <span class="nav-label">Rutas</span>
+                </button>
+
+                <button class="nav-item" [class.active]="viewMode() === 'creator'" (click)="setViewMode('creator')"
+                    title="Crear Nueva Ruta">
+                    <div class="nav-icon"><i class="fas fa-pen-nib"></i></div>
+                    <span class="nav-label">Crear</span>
+                </button>
             </div>
-            } @else {
-            @for (route of filteredRoutes(); track route._id || route.id) {
-            <div (click)="selectRoute(route)" class="route-card"
-                [class.active]="(selectedRoute()?._id || selectedRoute()?.id) === (route._id || route.id)"
-                [style.border-left-color]="(selectedRoute()?._id || selectedRoute()?.id) === (route._id || route.id) ? route.color : 'transparent'">
-                <!-- Banda de color decorativa (si no está activo) -->
-                @if((selectedRoute()?._id || selectedRoute()?.id) !== (route._id || route.id)) {
-                <div class="color-strip" [style.backgroundColor]="route.color"></div>
-                }
 
-                <div class="route-content">
-                    <div class="route-header">
-                        <h3 class="route-name">{{ route.name }}</h3>
-                        <span class="route-type">{{ route.type }}</span>
+            <div class="nav-footer">
+                <small>v1.0</small>
+            </div>
+        </nav>
+
+        <!-- 2. PANEL DE CONTENIDO (Derecha) -->
+        <div class="panel-content">
+
+            <!-- CONTENIDO: MODO VISOR -->
+            @if (viewMode() === 'viewer') {
+            <div class="panel-view fade-in">
+                <div class="panel-header">
+                    <h2>Rutas Tijuana</h2>
+                    <p>Transporte Público</p>
+                </div>
+
+                <div class="search-container">
+                    <div class="search-wrapper">
+                        <i class="fas fa-search search-icon"></i>
+                        <input type="text" placeholder="Buscar destino..." class="search-input"
+                            (input)="filterRoutes($event)" />
                     </div>
-                    <!-- Mostramos landmarks -->
-                    <div class="landmarks-container">
-                        @for (mark of route.landmarks?.slice(0, 3); track mark) {
-                        <span class="landmark-tag">{{ mark }}</span>
+                </div>
+
+                <div class="routes-list">
+                    @if (isLoading()) {
+                    <div class="loading-state">
+                        <i class="fas fa-spinner fa-spin loading-icon"></i>
+                        <p>Cargando rutas...</p>
+                    </div>
+                    } @else {
+                    @for (route of filteredRoutes(); track route._id || route.id) {
+                    <div (click)="selectRoute(route)" class="route-card"
+                        [class.active]="(selectedRoute()?._id || selectedRoute()?.id) === (route._id || route.id)"
+                        [style.border-left-color]="(selectedRoute()?._id || selectedRoute()?.id) === (route._id || route.id) ? route.color : 'transparent'">
+                        @if((selectedRoute()?._id || selectedRoute()?.id) !== (route._id || route.id)) {
+                        <div class="color-strip" [style.backgroundColor]="route.color"></div>
                         }
-                        @if (route.landmarks && route.landmarks.length > 3) {
-                        <span class="landmark-more">+{{route.landmarks.length - 3}}</span>
-                        }
+                        <div class="route-content">
+                            <div class="route-header">
+                                <h3 class="route-name">{{ route.name }}</h3>
+                                <span class="route-type">{{ route.type }}</span>
+                            </div>
+                            <div class="landmarks-container">
+                                @for (mark of route.landmarks.slice(0, 3); track mark) {
+                                <span class="landmark-tag">{{ mark }}</span>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                    } @empty {
+                    <div class="empty-state">
+                        <i class="fas fa-route empty-icon"></i>
+                        <p>No encontramos rutas con ese nombre.</p>
+                    </div>
+                    }
+                    }
+                </div>
+            </div>
+            }
+
+            <!-- CONTENIDO: MODO CREADOR -->
+            @if (viewMode() === 'creator') {
+            <div class="panel-view fade-in">
+                <div class="panel-header creator-bg">
+                    <h2>Editor de Rutas</h2>
+                    <p>Modo Administrador</p>
+                </div>
+
+                <div class="form-scroll-area">
+                    <div class="form-container">
+                        <div class="form-group">
+                            <label>Nombre</label>
+                            <input type="text" [(ngModel)]="newRoute.name" placeholder="Ej. Rojo y Negro"
+                                class="form-input">
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group half">
+                                <label>Tipo</label>
+                                <select [(ngModel)]="newRoute.type" class="form-input">
+                                    <option value="taxi">Taxi</option>
+                                    <option value="bus">Autobús</option>
+                                    <option value="calafia">Calafia</option>
+                                </select>
+                            </div>
+                            <div class="form-group half">
+                                <label>Color</label>
+                                <div class="color-picker-wrapper">
+                                    <input type="color" [(ngModel)]="newRoute.color"
+                                        (change)="updateCreatorPolylineStyle()" class="color-input">
+                                    <span class="color-value">{{newRoute.color}}</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Descripción</label>
+                            <textarea [(ngModel)]="newRoute.description" rows="2" class="form-input"></textarea>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Puntos Clave (CSV)</label>
+                            <input type="text" [(ngModel)]="landmarksString" placeholder="Centro, 5y10..."
+                                class="form-input">
+                        </div>
+
+                        <div class="creator-stats">
+                            <div class="stat">
+                                <span class="stat-val">{{ getPathLength() }}</span>
+                                <span class="stat-label">Puntos</span>
+                            </div>
+                            <div class="stat-actions">
+                                <button (click)="undoLastPoint()" class="btn-icon" title="Deshacer">
+                                    <i class="fas fa-undo"></i>
+                                </button>
+                                <button (click)="clearCreatorMap()" class="btn-icon danger" title="Borrar todo">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <button (click)="saveNewRoute()" class="btn-primary full-width">
+                            <i class="fas fa-save"></i> Guardar Ruta
+                        </button>
+
+                        <div class="instruction-text">
+                            <small><i class="fas fa-mouse-pointer"></i> Clic en mapa para trazar.</small>
+                        </div>
                     </div>
                 </div>
             </div>
-            } @empty {
-            <div class="empty-state">
-                <i class="fas fa-route empty-icon"></i>
-                <p>No encontramos rutas con ese nombre.</p>
-            </div>
             }
-            }
-        </div>
-
-        <!-- Footer Sidebar -->
-        <div class="sidebar-footer">
-            <div class="ad-placeholder">
-                Publicidad aquí
-            </div>
         </div>
     </aside>
 
@@ -83,36 +177,27 @@
 
     <!-- ÁREA DEL MAPA -->
     <main class="main-content">
-        <div id="map" class="map-container"></div>
+        <!-- Mapa Visor -->
+        <div id="map-viewer" class="map-container" [class.hidden]="viewMode() !== 'viewer'"></div>
 
-        <!-- Tarjeta de Información Flotante -->
-        @if (selectedRoute()) {
+        <!-- Mapa Creador -->
+        <div id="map-creator" class="map-container" [class.hidden]="viewMode() !== 'creator'"></div>
+
+        <!-- Tarjeta Info (Solo Visor) -->
+        @if (viewMode() === 'viewer' && selectedRoute()) {
         <div class="info-card" [style.border-color]="selectedRoute()?.color">
             <div class="info-header">
                 <div>
                     <span class="info-subtitle">Ruta Seleccionada</span>
                     <h2 class="info-title">{{ selectedRoute()?.name }}</h2>
                 </div>
-                <button (click)="clearSelection()" class="close-btn">
-                    <i class="fas fa-times"></i>
-                </button>
+                <button (click)="clearSelection()" class="close-btn"><i class="fas fa-times"></i></button>
             </div>
-
             <p class="info-description">{{ selectedRoute()?.description }}</p>
-
             <div class="info-landmarks">
-                <h4 class="landmarks-title"><i class="fas fa-map-signs"></i> Puntos Clave:</h4>
                 <div class="tags-wrapper">
-                    @for (mark of selectedRoute()?.landmarks; track mark) {
-                    <span class="tag">{{ mark }}</span>
-                    }
+                    @for (mark of selectedRoute()?.landmarks; track mark) { <span class="tag">{{ mark }}</span> }
                 </div>
-            </div>
-
-            <div class="info-actions">
-                <button class="action-btn">
-                    <i class="fas fa-location-arrow"></i> Cómo llegar
-                </button>
             </div>
         </div>
         }

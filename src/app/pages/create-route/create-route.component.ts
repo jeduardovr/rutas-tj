@@ -1,23 +1,23 @@
-import { Component, computed, signal, OnInit, AfterViewInit } from '@angular/core';
+import { Component, OnInit, AfterViewInit, signal, computed, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouteData } from '@interfaces';
-import { RouteService } from '@services/route.service';
 
 @Component({
-  selector: 'app-home',
+  selector: 'app-create-route',
   standalone: true,
   imports: [CommonModule, FormsModule],
-  templateUrl: './home.component.html',
-  styleUrl: './home.component.css'
+  templateUrl: './create-route.component.html',
+  styleUrl: './create-route.component.css'
 })
-export class HomeComponent implements OnInit, AfterViewInit {
+export class CreateRouteComponent implements OnInit, AfterViewInit {
   // --- ESTADO ---
   viewMode = signal<'viewer' | 'creator'>('viewer');
   isSidebarOpen = signal(false);
+
+  // Viewer State
   searchQuery = signal('');
   selectedRoute = signal<RouteData | null>(null);
-  isLoading = signal(false);
 
   // Creator State
   landmarksString = '';
@@ -36,39 +36,46 @@ export class HomeComponent implements OnInit, AfterViewInit {
   private mapViewer: any;
   private mapCreator: any;
   private viewerPolyline: any;
-  private creatorPolyline: any;
-  private creatorMarkers: any[] = [];
 
-  // Rutas cargadas desde el servidor
-  routes = signal<RouteData[]>([]);
+  // Capas del creador
+  private creatorPolyline: any;
+  private creatorMarkers: any[] = []; // Para mostrar los puntos clicados
+
+  // --- DATOS SIMULADOS ---
+  routes = signal<RouteData[]>([
+    {
+      id: '1',
+      name: 'Rojo y Negro',
+      type: 'taxi',
+      color: '#d91a1a',
+      description: 'Circuito Centro - Agua Caliente - Presa',
+      path: [[32.5332, -117.0365], [32.5250, -117.0250], [32.5180, -117.0080], [32.5050, -116.9750], [32.4650, -116.9200]],
+      landmarks: ['Centro', '5 y 10', 'Presa']
+    },
+    {
+      id: '2',
+      name: 'Verde (Otay)',
+      type: 'bus',
+      color: '#10b981',
+      description: 'Ruta universitaria Otay',
+      path: [[32.5050, -116.9750], [32.5150, -116.9700], [32.5350, -116.9500], [32.5400, -116.9400]],
+      landmarks: ['UABC', 'Garita Otay']
+    }
+  ]);
 
   filteredRoutes = computed(() => {
     const q = this.searchQuery().toLowerCase();
-    return this.routes().filter(r =>
-      r.name.toLowerCase().includes(q) ||
-      r.landmarks.some(l => l.toLowerCase().includes(q))
-    );
+    return this.routes().filter(r => r.name.toLowerCase().includes(q));
   });
 
-  constructor(private routeService: RouteService) { }
+  // Helper to safely access path as array
+  get routePath(): [number, number][] {
+    const path = this.newRoute.path;
+    return Array.isArray(path) ? path : [];
+  }
 
   ngOnInit() {
     this.loadLeafletResources();
-    this.loadRoutes();
-  }
-
-  loadRoutes() {
-    this.isLoading.set(true);
-    this.routeService.getRoutes().subscribe({
-      next: (response: any) => {
-        this.routes.set(response.data);
-        this.isLoading.set(false);
-      },
-      error: (error) => {
-        console.error('Error al cargar rutas:', error);
-        this.isLoading.set(false);
-      }
-    });
   }
 
   ngAfterViewInit() {
@@ -76,6 +83,8 @@ export class HomeComponent implements OnInit, AfterViewInit {
       if ((window as any).L) {
         clearInterval(checkLeaflet);
         this.initViewerMap();
+        // No iniciamos el mapa creador hasta que el usuario cambie de tab
+        // o podemos iniciarlo oculto. Lo haremos lazy cuando cambie el modo.
       }
     }, 100);
   }
@@ -97,13 +106,12 @@ export class HomeComponent implements OnInit, AfterViewInit {
   }
 
   // --- LÓGICA DE VISTAS ---
-  toggleSidebar() {
-    this.isSidebarOpen.update(v => !v);
-  }
+  toggleSidebar() { this.isSidebarOpen.update(v => !v); }
 
   setViewMode(mode: 'viewer' | 'creator') {
     this.viewMode.set(mode);
 
+    // Hack para redibujar mapas de leaflet cuando cambian de display: none
     setTimeout(() => {
       if (mode === 'viewer' && this.mapViewer) {
         this.mapViewer.invalidateSize();
@@ -116,9 +124,7 @@ export class HomeComponent implements OnInit, AfterViewInit {
       }
     }, 100);
 
-    if (window.innerWidth < 768) {
-      this.isSidebarOpen.set(false);
-    }
+    if (window.innerWidth < 768) this.isSidebarOpen.set(false);
   }
 
   // --- VISOR LÓGICA ---
@@ -129,70 +135,35 @@ export class HomeComponent implements OnInit, AfterViewInit {
     L.control.zoom({ position: 'bottomright' }).addTo(this.mapViewer);
   }
 
-  filterRoutes(e: Event) {
-    this.searchQuery.set((e.target as HTMLInputElement).value);
-  }
+  filterRoutes(e: Event) { this.searchQuery.set((e.target as HTMLInputElement).value); }
 
   selectRoute(route: RouteData) {
     const L = (window as any).L;
-    if (!L || !this.mapViewer) return;
-
-    const routeId = route._id || route.id;
-    const selectedId = this.selectedRoute()?._id || this.selectedRoute()?.id;
-
-    if (routeId === selectedId) return;
-
+    if (this.selectedRoute()?.id === route.id) return;
     this.selectedRoute.set(route);
-
-    if (window.innerWidth < 768) {
-      this.isSidebarOpen.set(false);
-    }
-
-    let coordinates: [number, number][];
-
-    if (route.path && typeof route.path === 'object' && 'coordinates' in route.path) {
-      const geoCoords = route.path.coordinates as [number, number][];
-      coordinates = geoCoords.map(coord => [coord[1], coord[0]] as [number, number]);
-    } else if (Array.isArray(route.path)) {
-      coordinates = route.path;
-    } else {
-      return;
-    }
-
-    if (!coordinates || coordinates.length === 0) return;
 
     if (this.viewerPolyline) this.mapViewer.removeLayer(this.viewerPolyline);
 
-    try {
-      this.viewerPolyline = L.polyline(coordinates, {
-        color: route.color,
-        weight: 6,
-        opacity: 0.9,
-        lineJoin: 'round'
-      }).addTo(this.mapViewer);
+    this.viewerPolyline = L.polyline(route.path, { color: route.color, weight: 6 }).addTo(this.mapViewer);
+    this.mapViewer.fitBounds(this.viewerPolyline.getBounds(), { padding: [50, 50] });
 
-      this.mapViewer.fitBounds(this.viewerPolyline.getBounds(), {
-        padding: [50, 50],
-        maxZoom: 14
-      });
-    } catch (error) {
-      console.error('Error al dibujar la ruta:', error);
-    }
+    if (window.innerWidth < 768) this.isSidebarOpen.set(false);
   }
 
   clearSelection() {
     this.selectedRoute.set(null);
     if (this.viewerPolyline) this.mapViewer.removeLayer(this.viewerPolyline);
-    this.mapViewer.flyTo([32.5149, -117.0382], 12);
   }
 
   // --- CREADOR LÓGICA ---
   initCreatorMap() {
     const L = (window as any).L;
+    // Usamos un ID diferente para el mapa del creador
     this.mapCreator = L.map('map-creator', { zoomControl: false }).setView([32.5149, -117.0382], 12);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OSM' }).addTo(this.mapCreator);
     L.control.zoom({ position: 'bottomright' }).addTo(this.mapCreator);
 
+    // Evento de clic para agregar puntos
     this.mapCreator.on('click', (e: any) => {
       this.addCreatorPoint(e.latlng.lat, e.latlng.lng);
     });
@@ -201,12 +172,14 @@ export class HomeComponent implements OnInit, AfterViewInit {
   addCreatorPoint(lat: number, lng: number) {
     const L = (window as any).L;
 
+    // Agregar a datos - ensure we're working with array type
     if (Array.isArray(this.newRoute.path)) {
       this.newRoute.path.push([lat, lng]);
     } else {
       this.newRoute.path = [[lat, lng]];
     }
 
+    // Agregar marcador visual (puntito)
     const marker = L.circleMarker([lat, lng], {
       radius: 5,
       color: '#333',
@@ -216,14 +189,17 @@ export class HomeComponent implements OnInit, AfterViewInit {
     }).addTo(this.mapCreator);
     this.creatorMarkers.push(marker);
 
+    // Dibujar/Actualizar línea
     this.redrawCreatorPolyline();
   }
 
   undoLastPoint() {
     if (!Array.isArray(this.newRoute.path) || this.newRoute.path.length === 0) return;
 
+    // Quitar datos
     this.newRoute.path.pop();
 
+    // Quitar marcador visual
     const L = (window as any).L;
     const lastMarker = this.creatorMarkers.pop();
     if (lastMarker) this.mapCreator.removeLayer(lastMarker);
@@ -235,9 +211,11 @@ export class HomeComponent implements OnInit, AfterViewInit {
     const L = (window as any).L;
     this.newRoute.path = [];
 
+    // Limpiar marcadores
     this.creatorMarkers.forEach(m => this.mapCreator.removeLayer(m));
     this.creatorMarkers = [];
 
+    // Limpiar línea
     if (this.creatorPolyline) this.mapCreator.removeLayer(this.creatorPolyline);
   }
 
@@ -250,7 +228,7 @@ export class HomeComponent implements OnInit, AfterViewInit {
       this.creatorPolyline = L.polyline(this.newRoute.path, {
         color: this.newRoute.color,
         weight: 4,
-        dashArray: '5, 10',
+        dashArray: '5, 10', // Linea punteada mientras se edita
         opacity: 0.7
       }).addTo(this.mapCreator);
     }
@@ -263,61 +241,22 @@ export class HomeComponent implements OnInit, AfterViewInit {
   }
 
   saveNewRoute() {
-    if (!this.newRoute.name.trim()) {
-      alert('Por favor ingresa un nombre para la ruta');
-      return;
-    }
-
-    if (!Array.isArray(this.newRoute.path) || this.newRoute.path.length === 0) {
-      alert('Por favor agrega al menos un punto en el mapa');
-      return;
-    }
-
+    // Procesar landmarks string a array
     this.newRoute.landmarks = this.landmarksString.split(',').map(s => s.trim()).filter(s => s.length > 0);
 
-    const coordinates = this.newRoute.path.map(point => [point[1], point[0]]);
-    const geoJsonPath = {
-      type: "LineString",
-      coordinates: coordinates
+    // Generar ID temporal o dejar que Mongo lo haga
+    const finalData = {
+      ...this.newRoute,
+      // path: this.newRoute.path // Ya está en formato correcto
     };
 
-    const routeData = {
-      name: this.newRoute.name,
-      type: this.newRoute.type,
-      color: this.newRoute.color,
-      description: this.newRoute.description,
-      landmarks: this.newRoute.landmarks,
-      path: geoJsonPath,
-      active: true
-    };
-
-    this.routeService.createRoute(routeData).subscribe({
-      next: (response) => {
-        alert('✅ Ruta guardada exitosamente');
-        this.newRoute = {
-          name: '',
-          type: 'taxi',
-          color: '#3b82f6',
-          description: '',
-          path: [],
-          landmarks: []
-        };
-        this.landmarksString = '';
-        this.clearCreatorMap();
-        this.loadRoutes();
-        this.setViewMode('viewer');
-      },
-      error: (error) => {
-        console.error('Error al guardar ruta:', error);
-        alert('❌ Error al guardar la ruta. Por favor intenta de nuevo.');
-      }
-    });
+    this.generatedJson = JSON.stringify(finalData, null, 2);
+    this.showJsonModal = true;
   }
 
-  getPathLength(): number {
-    if (Array.isArray(this.newRoute.path)) {
-      return this.newRoute.path.length;
-    }
-    return 0;
+  copyJson() {
+    navigator.clipboard.writeText(this.generatedJson).then(() => {
+      alert('JSON copiado al portapapeles');
+    });
   }
 }
