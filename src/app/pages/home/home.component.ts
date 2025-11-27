@@ -18,6 +18,7 @@ export class HomeComponent implements OnInit, AfterViewInit {
   searchQuery = signal('');
   selectedRoute = signal<RouteData | null>(null);
   isLoading = signal(false);
+  isEditing = signal<boolean>(false); // Estado de ed ición
 
   // Creator State
   landmarksString = '';
@@ -61,6 +62,7 @@ export class HomeComponent implements OnInit, AfterViewInit {
     this.isLoading.set(true);
     this.routeService.getRoutes().subscribe({
       next: (response: any) => {
+        console.log(response);
         this.routes.set(response.data);
         this.isLoading.set(false);
       },
@@ -104,15 +106,22 @@ export class HomeComponent implements OnInit, AfterViewInit {
   setViewMode(mode: 'viewer' | 'creator') {
     this.viewMode.set(mode);
 
+    // 💡 FIX: Esperamos a que Angular actualice el DOM antes de manipular los mapas
     setTimeout(() => {
       if (mode === 'viewer' && this.mapViewer) {
         this.mapViewer.invalidateSize();
       } else if (mode === 'creator') {
         if (!this.mapCreator) {
+          // Inicializamos el mapa creador si no existe
           this.initCreatorMap();
-        } else {
-          this.mapCreator.invalidateSize();
         }
+        // 💡 FIX CRÍTICO: Siempre redibujamos el mapa después de hacerlo visible
+        // Usamos requestAnimationFrame para asegurar que el contenedor es visible
+        requestAnimationFrame(() => {
+          if (this.mapCreator) {
+            this.mapCreator.invalidateSize();
+          }
+        });
       }
     }, 100);
 
@@ -186,6 +195,34 @@ export class HomeComponent implements OnInit, AfterViewInit {
     this.mapViewer.flyTo([32.5149, -117.0382], 12);
   }
 
+  // --- LÓGICA DE EDICIÓN ---
+  startEditing(route: RouteData) {
+    this.isEditing.set(true);
+    this.newRoute = { ...route };
+    this.landmarksString = route.landmarks ? route.landmarks.join(', ') : '';
+    this.setViewMode('creator');
+
+    // Esperamos a que el mapa se inicialice antes de cargar el path
+    setTimeout(() => {
+      if (this.mapCreator && this.newRoute.path && Array.isArray(this.newRoute.path)) {
+        this.loadPathIntoCreatorMap(this.newRoute.path as [number, number][]);
+      }
+    }, 200);
+
+    if (window.innerWidth < 768) this.isSidebarOpen.set(true);
+  }
+
+  resetCreator() {
+    this.isEditing.set(false);
+    this.newRoute = {
+      name: '', type: 'taxi', color: '#3b82f6', description: '', path: [], landmarks: []
+    };
+    this.landmarksString = '';
+    if (this.mapCreator) {
+      this.clearCreatorMap();
+    }
+  }
+
   // --- CREADOR LÓGICA ---
   initCreatorMap() {
     const L = (window as any).L;
@@ -217,6 +254,41 @@ export class HomeComponent implements OnInit, AfterViewInit {
     this.creatorMarkers.push(marker);
 
     this.redrawCreatorPolyline();
+  }
+
+  loadPathIntoCreatorMap(path: [number, number][]) {
+    const L = (window as any).L;
+    if (!this.mapCreator) return;
+
+    this.clearCreatorMap();
+
+    if (!path || path.length === 0) return;
+
+    // Manejar tanto formato GeoJSON como array simple
+    let coordinates: [number, number][] = [];
+    if (typeof path === 'object' && 'coordinates' in path && Array.isArray((path as any).coordinates)) {
+      // GeoJSON format: convert [lng, lat] to [lat, lng]
+      coordinates = (path as any).coordinates.map((coord: any) => [coord[1], coord[0]]);
+    } else if (Array.isArray(path)) {
+      coordinates = path.map(p => [...p] as [number, number]);
+    } else {
+      return;
+    }
+
+    this.newRoute.path = coordinates;
+
+    coordinates.forEach(coords => {
+      const [lat, lng] = coords;
+      const marker = L.circleMarker([lat, lng], {
+        radius: 5, color: '#333', fillColor: '#fff', fillOpacity: 1, weight: 2
+      }).addTo(this.mapCreator);
+      this.creatorMarkers.push(marker);
+    });
+
+    this.redrawCreatorPolyline();
+
+    const polyline = L.polyline(coordinates);
+    this.mapCreator.fitBounds(polyline.getBounds(), { padding: [50, 50] });
   }
 
   undoLastPoint() {

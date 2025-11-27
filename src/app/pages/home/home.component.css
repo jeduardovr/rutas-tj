@@ -572,6 +572,13 @@
     font-weight: 600;
 }
 
+.info-actions {
+    display: flex;
+    flex-direction: row;
+    gap: 0.5rem;
+    align-items: center;
+}
+
 .close-btn {
     background: none;
     border: none;

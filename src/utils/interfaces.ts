@@ -1,10 +1,10 @@
 export interface RouteData {
+    _id?: string;
     id?: string;
-    _id?: string;  // MongoDB ID
     name: string;
-    type: 'taxi' | 'bus' | 'calafia';
+    type: 'taxi' | 'bus' | 'calafia' | string;
     color: string;
     description: string;
-    path: [number, number][] | { type: string; coordinates: [number, number][] };  // Array directo o GeoJSON
+    path: [number, number][];
     landmarks: string[];
 }

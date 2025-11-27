@@ -1,6 +1,5 @@
 <div class="app-container">
 
-    <!-- HEADER MOBILE -->
     <header class="mobile-header">
         <h1 class="brand-title">
             <img src="/images/logo.png" alt="Logo" class="brand-logo"> Rutas Tijuana
@@ -10,12 +9,9 @@
         </button>
     </header>
 
-    <!-- SIDEBAR PRINCIPAL (Contenedor Flex: Riel + Panel) -->
     <aside class="sidebar" [class.open]="isSidebarOpen()">
 
-        <!-- 1. RIEL DE NAVEGACIÓN (Izquierda) -->
         <nav class="nav-rail">
-            <!-- Logo Desktop -->
             <div class="nav-brand-icon">
                 <img src="/images/logo.png" alt="Logo" class="nav-logo">
             </div>
@@ -39,10 +35,8 @@
             </div>
         </nav>
 
-        <!-- 2. PANEL DE CONTENIDO (Derecha) -->
         <div class="panel-content">
 
-            <!-- CONTENIDO: MODO VISOR -->
             @if (viewMode() === 'viewer') {
             <div class="panel-view fade-in">
                 <div class="panel-header">
@@ -68,10 +62,7 @@
                     @for (route of filteredRoutes(); track route._id || route.id) {
                     <div (click)="selectRoute(route)" class="route-card"
                         [class.active]="(selectedRoute()?._id || selectedRoute()?.id) === (route._id || route.id)"
-                        [style.border-left-color]="(selectedRoute()?._id || selectedRoute()?.id) === (route._id || route.id) ? route.color : 'transparent'">
-                        @if((selectedRoute()?._id || selectedRoute()?.id) !== (route._id || route.id)) {
-                        <div class="color-strip" [style.backgroundColor]="route.color"></div>
-                        }
+                        [style.border-left-color]="route.color">
                         <div class="route-content">
                             <div class="route-header">
                                 <h3 class="route-name">{{ route.name }}</h3>
@@ -95,12 +86,16 @@
             </div>
             }
 
-            <!-- CONTENIDO: MODO CREADOR -->
             @if (viewMode() === 'creator') {
             <div class="panel-view fade-in">
                 <div class="panel-header creator-bg">
-                    <h2>Editor de Rutas</h2>
-                    <p>Modo Administrador</p>
+                    @if (isEditing()) {
+                    <h2>Editar Ruta: {{ newRoute.name || 'Sin Nombre' }}</h2>
+                    <p>Modifica el formulario o el trazado.</p>
+                    } @else {
+                    <h2>Crear Nueva Ruta</h2>
+                    <p>Traza la ruta en el mapa</p>
+                    }
                 </div>
 
                 <div class="form-scroll-area">
@@ -157,7 +152,12 @@
                         </div>
 
                         <button (click)="saveNewRoute()" class="btn-primary full-width">
-                            <i class="fas fa-save"></i> Guardar Ruta
+                            <i class="fas fa-save"></i>
+                            @if (isEditing()) {
+                            Guardar Cambios
+                            } @else {
+                            Guardar Nueva Ruta
+                            }
                         </button>
 
                         <div class="instruction-text">
@@ -170,20 +170,15 @@
         </div>
     </aside>
 
-    <!-- OVERLAY para Mobile -->
     @if (isSidebarOpen()) {
     <div class="overlay" (click)="toggleSidebar()"></div>
     }
 
-    <!-- ÁREA DEL MAPA -->
     <main class="main-content">
-        <!-- Mapa Visor -->
         <div id="map-viewer" class="map-container" [class.hidden]="viewMode() !== 'viewer'"></div>
 
-        <!-- Mapa Creador -->
         <div id="map-creator" class="map-container" [class.hidden]="viewMode() !== 'creator'"></div>
 
-        <!-- Tarjeta Info (Solo Visor) -->
         @if (viewMode() === 'viewer' && selectedRoute()) {
         <div class="info-card" [style.border-color]="selectedRoute()?.color">
             <div class="info-header">
@@ -191,7 +186,12 @@
                     <span class="info-subtitle">Ruta Seleccionada</span>
                     <h2 class="info-title">{{ selectedRoute()?.name }}</h2>
                 </div>
-                <button (click)="clearSelection()" class="close-btn"><i class="fas fa-times"></i></button>
+                <div class="info-actions">
+                    <button (click)="startEditing(selectedRoute()!)" class="btn-icon" title="Editar Ruta">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button (click)="clearSelection()" class="close-btn"><i class="fas fa-times"></i></button>
+                </div>
             </div>
             <p class="info-description">{{ selectedRoute()?.description }}</p>
             <div class="info-landmarks">
