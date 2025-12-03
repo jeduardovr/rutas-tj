@@ -42,7 +42,7 @@
                 <small class="version-text">v1.0</small>
             </div>
         </nav>
-        
+
         <div class="panel-content">
             @if (viewMode() === 'viewer') {
             <div class="panel-view fade-in">
@@ -57,6 +57,15 @@
                         <input type="text" placeholder="¿A dónde quieres ir?" class="search-input"
                             (input)="filterRoutes($event)" />
                     </div>
+                    <button class="btn-location" [class.active]="sortByProximity()" (click)="toggleSortByProximity()"
+                        [disabled]="isLoadingLocation()"
+                        title="{{ sortByProximity() ? 'Desactivar ordenamiento por cercanía' : 'Ordenar por cercanía' }}">
+                        @if (isLoadingLocation()) {
+                        <i class="fas fa-circle-notch fa-spin"></i>
+                        } @else {
+                        <i class="fas fa-location-arrow"></i>
+                        }
+                    </button>
                 </div>
 
                 <div class="routes-list">
@@ -96,14 +105,12 @@
                             </div>
                             }
 
-                            <div class="landmarks-container">
-                                <i class="fas fa-map-marker-alt text-muted"></i>
-                                <div class="landmarks-scroll">
-                                    @for (mark of route.landmarks.slice(0, 3); track mark) {
-                                    <span class="landmark-tag">{{ mark }}</span>
-                                    }
-                                </div>
+                            @if (sortByProximity() && getRouteDistanceText(route)) {
+                            <div class="route-distance">
+                                <i class="fas fa-map-marker-alt"></i>
+                                <span>{{ getRouteDistanceText(route) }}</span>
                             </div>
+                            }
                         </div>
 
                         <div class="route-action">
@@ -121,20 +128,11 @@
             </div>
             }
 
-                        <app-create-route
-                        style="overflow-y: auto;"
-                            *ngIf="viewMode() === 'creator'"
-                            [newRoute]="newRoute"
-                            [isEditing]="isEditing()"
-                            [is24Hours]="is24Hours"
-                            [landmarksString]="landmarksString"
-                            [pathLength]="getPathLength()"
-                            (saveRoute)="saveNewRoute()"
-                            (cancel)="onCancelCreateRoute()"
-                            (undoPoint)="undoLastPoint()"    
-                            (clearMap)="clearCreatorMap()"    
-                            (updateColor)="updateCreatorPolylineStyle()" 
-                        ></app-create-route>
+            <app-create-route style="overflow-y: auto;" *ngIf="viewMode() === 'creator'" [newRoute]="newRoute"
+                [isEditing]="isEditing()" [is24Hours]="is24Hours" [landmarksString]="landmarksString"
+                [pathLength]="getPathLength()" (saveRoute)="saveNewRoute()" (cancel)="onCancelCreateRoute()"
+                (undoPoint)="undoLastPoint()" (clearMap)="clearCreatorMap()"
+                (updateColor)="updateCreatorPolylineStyle()"></app-create-route>
         </div>
     </aside>
 

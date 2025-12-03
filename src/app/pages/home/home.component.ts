@@ -5,6 +5,7 @@ import { CreateRouteComponent } from '../create-route/create-route.component';
 import { RouteData } from '@interfaces';
 import { RouteService } from '@services/route.service';
 import { AuthService } from '@services/auth.service';
+import { GeolocationService, UserLocation } from '@services/geolocation.service';
 import { Router } from '@angular/router';
 
 @Component({
@@ -55,13 +56,30 @@ export class HomeComponent implements OnInit, AfterViewInit {
   // Rutas cargadas desde el servidor
   routes = signal<RouteData[]>([]);
 
+  // Geolocalización
+  userLocation = signal<UserLocation | null>(null);
+  sortByProximity = signal<boolean>(false);
+  isLoadingLocation = signal<boolean>(false);
+
   filteredRoutes = computed(() => {
     const q = this.searchQuery().toLowerCase();
-    return this.routes().filter(r =>
+    let filtered = this.routes().filter(r =>
       r.from.toLowerCase().includes(q) ||
       r.to.toLowerCase().includes(q) ||
       r.landmarks.some(l => l.toLowerCase().includes(q))
     );
+
+    // Ordenar por proximidad si está activado
+    if (this.sortByProximity() && this.userLocation()) {
+      const location = this.userLocation()!;
+      filtered = [...filtered].sort((a, b) => {
+        const distA = this.getRouteDistance(a, location);
+        const distB = this.getRouteDistance(b, location);
+        return distA - distB;
+      });
+    }
+
+    return filtered;
   });
 
   // onSaveRoute eliminado o modificado: el guardado real lo hace saveNewRoute
@@ -87,7 +105,12 @@ export class HomeComponent implements OnInit, AfterViewInit {
     this.viewMode.set('viewer');
   }
 
-  constructor(private routeService: RouteService, public authService: AuthService, private router: Router) { }
+  constructor(
+    private routeService: RouteService,
+    public authService: AuthService,
+    private geolocationService: GeolocationService,
+    private router: Router
+  ) { }
 
   ngOnInit() {
     this.loadLeafletResources();
@@ -148,7 +171,7 @@ export class HomeComponent implements OnInit, AfterViewInit {
       if (mode === 'creator') {
         this.initCreatorMap();
         if (this.mapCreator) {
-             this.mapCreator.invalidateSize();
+          this.mapCreator.invalidateSize();
         }
       }
     }, 100);
@@ -232,19 +255,19 @@ export class HomeComponent implements OnInit, AfterViewInit {
       const geoCoords = route.path.coordinates as [number, number][];
       // Convertir [lng, lat] a [lat, lng] para Leaflet
       initialPath = geoCoords.map(coord => [coord[1], coord[0]] as [number, number]);
-      this.newRoute.path = initialPath; 
+      this.newRoute.path = initialPath;
     } else if (Array.isArray(route.path)) {
       initialPath = route.path;
-    } 
+    }
 
     this.setViewMode('creator');
-    
+
     // CAMBIO: Inicializa y carga la ruta en el mapa creador
     setTimeout(() => {
-        this.initCreatorMap();
-        if (initialPath.length > 0) {
-            this.loadPathIntoCreatorMap(initialPath);
-        }
+      this.initCreatorMap();
+      if (initialPath.length > 0) {
+        this.loadPathIntoCreatorMap(initialPath);
+      }
     }, 100);
 
     if (window.innerWidth < 768) this.isSidebarOpen.set(true);
@@ -256,14 +279,14 @@ export class HomeComponent implements OnInit, AfterViewInit {
       from: '', to: '', type: 'taxi', schedule: { start: '', end: '' }, color: '#3b82f6', description: '', path: [], landmarks: []
     };
     this.landmarksString = '';
-    this.clearCreatorMap(); 
+    this.clearCreatorMap();
   }
 
   // --- CREADOR LÓGICA (Movida desde CreateRouteComponent) ---
   initCreatorMap() {
     const L = (window as any).L;
     const mapElement = document.getElementById('map-creator');
-    if (this.mapCreator && this.mapCreator._container) return; 
+    if (this.mapCreator && this.mapCreator._container) return;
     if (!mapElement) return;
 
     this.mapCreator = L.map('map-creator', { zoomControl: false }).setView([32.5149, -117.0382], 12);
@@ -297,7 +320,7 @@ export class HomeComponent implements OnInit, AfterViewInit {
     if (!this.mapCreator) return;
     this.clearCreatorMap();
     if (!path || path.length === 0) return;
-    this.newRoute.path = path.map(p => [...p]); 
+    this.newRoute.path = path.map(p => [...p]);
     path.forEach(coords => {
       const [lat, lng] = coords;
       const marker = L.circleMarker([lat, lng], {
@@ -458,5 +481,121 @@ export class HomeComponent implements OnInit, AfterViewInit {
       return;
     }
     this.setViewMode(mode);
+  }
+
+  // --- GEOLOCALIZACIÓN ---
+  toggleSortByProximity() {
+    if (!this.sortByProximity()) {
+      if (!this.userLocation()) {
+        this.getUserLocation();
+      } else {
+        this.sortByProximity.set(true);
+      }
+    } else {
+      this.sortByProximity.set(false);
+    }
+  }
+
+  getUserLocation() {
+    this.isLoadingLocation.set(true);
+    this.geolocationService.getCurrentPosition().subscribe({
+      next: (location) => {
+        this.isLoadingLocation.set(false);
+        if (location) {
+          this.userLocation.set(location);
+          this.sortByProximity.set(true);
+          console.log('Ubicación obtenida:', location);
+          this.addUserLocationMarker(location);
+        } else {
+          alert('No se pudo obtener tu ubicación. Por favor, permite el acceso a la ubicación en tu navegador.');
+        }
+      },
+      error: (error) => {
+        this.isLoadingLocation.set(false);
+        console.error('Error al obtener ubicación:', error);
+        alert('Error al obtener tu ubicación. Por favor, verifica los permisos de ubicación.');
+      }
+    });
+  }
+
+  private userLocationMarker: any = null;
+
+  addUserLocationMarker(location: UserLocation) {
+    const L = (window as any).L;
+    if (!L || !this.mapViewer) return;
+
+    if (this.userLocationMarker) {
+      this.mapViewer.removeLayer(this.userLocationMarker);
+    }
+
+    const userIcon = L.divIcon({
+      className: 'user-location-marker',
+      html: '<div style="background-color: #4285F4; width: 20px; height: 20px; border-radius: 50%; border: 3px solid white; box-shadow: 0 0 10px rgba(0,0,0,0.3);"></div>',
+      iconSize: [20, 20],
+      iconAnchor: [10, 10]
+    });
+
+    this.userLocationMarker = L.marker(
+      [location.latitude, location.longitude],
+      { icon: userIcon }
+    ).addTo(this.mapViewer);
+
+    this.mapViewer.setView([location.latitude, location.longitude], 13);
+  }
+
+  getRouteDistance(route: RouteData, userLocation: UserLocation): number {
+    let coordinates: [number, number][] = [];
+
+    if (route.path && typeof route.path === 'object' && 'coordinates' in route.path) {
+      const geoCoords = route.path.coordinates as [number, number][];
+      coordinates = geoCoords.map(coord => [coord[1], coord[0]] as [number, number]);
+    } else if (Array.isArray(route.path)) {
+      coordinates = route.path;
+    }
+
+    if (coordinates.length === 0) {
+      return Infinity;
+    }
+
+    return this.geolocationService.calculateMinDistanceToRoute(
+      userLocation.latitude,
+      userLocation.longitude,
+      coordinates
+    );
+  }
+
+  getRouteDistanceText(route: RouteData): string {
+    if (!this.userLocation() || !this.sortByProximity()) {
+      return '';
+    }
+
+    let coordinates: [number, number][] = [];
+
+    if (route.path && typeof route.path === 'object' && 'coordinates' in route.path) {
+      const geoCoords = route.path.coordinates as [number, number][];
+      coordinates = geoCoords.map(coord => [coord[1], coord[0]] as [number, number]);
+    } else if (Array.isArray(route.path)) {
+      coordinates = route.path;
+    }
+
+    if (coordinates.length === 0) {
+      return '';
+    }
+
+    const distance = this.geolocationService.calculateDistanceToRouteStart(
+      this.userLocation()!.latitude,
+      this.userLocation()!.longitude,
+      coordinates
+    );
+
+    if (distance === Infinity) {
+      return '';
+    }
+
+    if (distance < 1) {
+      return `${Math.round(distance * 1000)} m al inicio`;
+    }
+
+    return `${distance.toFixed(1)} km al inicio`;
   }
 }
