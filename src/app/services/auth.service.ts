@@ -46,6 +46,7 @@ export class AuthService {
     }
 
     private handleAuthResponse(response: any) {
+        console.log("🚀 ~ AuthService ~ handleAuthResponse ~ response:", response)
         if (response.token && response.user) {
             localStorage.setItem('token', response.token);
             localStorage.setItem('user', JSON.stringify(response.user));

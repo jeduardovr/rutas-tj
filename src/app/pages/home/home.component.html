@@ -36,14 +36,8 @@
                 @if (!authService.isLoggedIn()) {
                 <button class="btn-login styled-login" (click)="goToLogin()" title="Iniciar sesión">
                     <i class="fas fa-sign-in-alt"></i>
-                    </button>
-                } @else {
-                <button class="nav-item user-profile-btn" (click)="logout()" 
-                        title="{{ authService.currentUser()?.name }} (Cerrar Sesión)">
-                    <div class="user-avatar">
-                        {{ authService.currentUser()?.name?.charAt(0) || 'U' }}
-                    </div>
                 </button>
+                } @else {
                 }
                 <small class="version-text">v1.0</small>
             </div>
@@ -128,6 +122,7 @@
             }
 
                         <app-create-route
+                        style="overflow-y: auto;"
                             *ngIf="viewMode() === 'creator'"
                             [newRoute]="newRoute"
                             [isEditing]="isEditing()"
@@ -148,6 +143,17 @@
     }
 
     <main class="main-content">
+        @if (authService.isLoggedIn()) {
+        <div class="map-user-control fade-in">
+            <div class="user-avatar" title="{{ authService.currentUser()?.name }}">
+                {{ authService.currentUser()?.name?.charAt(0) || 'U' }}
+            </div>
+            <button class="btn-map-logout" (click)="logout()" title="Cerrar Sesión">
+                <i class="fas fa-sign-out-alt"></i>
+            </button>
+        </div>
+        }
+
         <div id="map-viewer" class="map-container" [class.hidden]="viewMode() !== 'viewer'"></div>
 
         <div id="map-creator" class="map-container" [class.hidden]="viewMode() !== 'creator'"></div>
