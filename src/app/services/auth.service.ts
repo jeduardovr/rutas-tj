@@ -34,11 +34,14 @@ export class AuthService {
      */
     private decodeToken(token: string): any {
         try {
+            if (!token || token.split('.').length < 3) {
+                return null;
+            }
             const payload = token.split('.')[1];
             const decodedPayload = atob(payload);
             return JSON.parse(decodedPayload);
         } catch (error) {
-            console.error('Error al decodificar el token:', error);
+            // No loguear error para evitar ruido en consola si el token no es JWT
             return null;
         }
     }
@@ -49,11 +52,16 @@ export class AuthService {
     private isTokenExpired(token: string): boolean {
         const decoded = this.decodeToken(token);
 
-        if (!decoded || !decoded.exp) {
-            return true; // Si no se puede decodificar o no tiene exp, considerarlo expirado
+        // Si no se puede decodificar (no es JWT estándar o está encriptado), 
+        // asumimos que es válido y dejamos que el backend lo valide en las peticiones.
+        if (!decoded) {
+            return false;
         }
 
-        // exp está en segundos, Date.now() está en milisegundos
+        if (!decoded.exp) {
+            return false; // Si es JWT pero no tiene campo exp, asumimos válido
+        }
+
         const expirationDate = decoded.exp * 1000;
         const currentDate = Date.now();
 
@@ -62,6 +70,7 @@ export class AuthService {
 
     /**
      * Valida si el token actual sigue siendo válido
+     * NOTA: No realiza logout automático para evitar efectos secundarios en la vista (NG0600)
      */
     isTokenValid(): boolean {
         const token = this.getToken();
@@ -71,7 +80,6 @@ export class AuthService {
         }
 
         if (this.isTokenExpired(token)) {
-            this.logout();
             return false;
         }
 
@@ -103,11 +111,20 @@ export class AuthService {
     }
 
     private handleAuthResponse(response: any) {
-        console.log("🚀 ~ AuthService ~ handleAuthResponse ~ response:", response)
-        if (response.token && response.user) {
-            localStorage.setItem('token', response.token);
-            localStorage.setItem('user', JSON.stringify(response.user));
-            this.currentUser.set(response.user);
+        console.log("🚀 ~ AuthService ~ handleAuthResponse ~ response:", response);
+
+        // Normalizar la respuesta: a veces viene directa, a veces dentro de 'data'
+        const data = response.data || response;
+
+        const token = data.token || response.token;
+        const user = data.user || response.user;
+
+        if (token && user) {
+            localStorage.setItem('token', token);
+            localStorage.setItem('user', JSON.stringify(user));
+            this.currentUser.set(user);
+        } else {
+            console.error('La respuesta de login no contiene token o usuario:', response);
         }
     }
 

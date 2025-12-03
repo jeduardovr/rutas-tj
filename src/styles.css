@@ -1,7 +1,14 @@
 /* You can add global styles to this file, and also import other style files */
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@300;400;600;700;800&display=swap');
+
+* {
+    box-sizing: border-box;
+}
+
 body {
     margin: 0;
     padding: 0;
+    font-family: 'Nunito', sans-serif;
 }
 
 /* Login button styling (sidebar) */
@@ -20,9 +27,11 @@ body {
     border-radius: 10px;
     cursor: pointer;
 }
+
 .btn-login.styled-login:hover {
-    background: rgba(255,255,255,0.03);
+    background: rgba(255, 255, 255, 0.03);
 }
+
 .btn-login.styled-login i {
     display: block;
     width: 28px;
@@ -30,10 +39,11 @@ body {
     line-height: 28px;
     text-align: center;
     border-radius: 8px;
-    background: rgba(255,255,255,0.02);
+    background: rgba(255, 255, 255, 0.02);
     color: #60a5fa;
     font-size: 14px;
 }
+
 .btn-login.styled-login .login-label {
     display: block;
     font-size: 10px;

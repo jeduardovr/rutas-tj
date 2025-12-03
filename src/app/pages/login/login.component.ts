@@ -54,15 +54,14 @@ export class LoginComponent implements OnInit {
   initGoogleButton() {
     if ((window as any).google) {
       (window as any).google.accounts.id.initialize({
-        client_id: 'YOUR_GOOGLE_CLIENT_ID',
+        client_id: '661867927943-39can6prp0i1hf1kagc8t8him7i492eo.apps.googleusercontent.com',
         callback: (response: any) => this.handleGoogleCredential(response)
       });
       const btn = document.getElementById('google-btn');
       if (btn) {
         (window as any).google.accounts.id.renderButton(btn, {
           theme: 'outline',
-          size: 'large',
-          width: '100%'
+          size: 'large'
         });
       }
     }

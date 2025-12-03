@@ -1,5 +1,3 @@
-
-
 .app-container {
     display: flex;
     flex-direction: column;
@@ -235,14 +233,18 @@
 .creator-header {
     background-color: #0f172a;
     padding: 1.5rem;
-    flex-shrink: 0; /* Asegura que el header mantenga su altura y no se encoja */
+    flex-shrink: 0;
+    /* Asegura que el header mantenga su altura y no se encoja */
 }
 
 /* NUEVO: Contenedor que permite el scroll del formulario */
 .form-scroll-wrapper {
-    flex: 1; /* Permite que ocupe todo el espacio vertical restante */
-    overflow-y: auto; /* Habilita el scroll */
-    padding-bottom: 2rem; /* Espacio extra al final del scroll */
+    flex: 1;
+    /* Permite que ocupe todo el espacio vertical restante */
+    overflow-y: auto;
+    /* Habilita el scroll */
+    padding-bottom: 2rem;
+    /* Espacio extra al final del scroll */
 }
 
 .form-container {
