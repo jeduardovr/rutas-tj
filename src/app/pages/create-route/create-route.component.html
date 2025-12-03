@@ -5,66 +5,19 @@
         <h1 class="brand-title">
             <i class="fas fa-bus"></i> TJ Transport
         </h1>
-        <button (click)="toggleSidebar()" class="menu-btn">
-            <i class="fas fa-bars"></i>
-        </button>
+        <!-- Botón de menú eliminado: no hay sidebar dinámico en este componente -->
     </header>
 
     <!-- SIDEBAR (Compartido para ambos modos) -->
-    <aside class="sidebar" [class.open]="isSidebarOpen()">
+    <aside class="sidebar">
 
         <!-- Switcher de Modos -->
-        <div class="mode-switcher">
-            <button class="mode-btn" [class.active]="viewMode() === 'viewer'" (click)="setViewMode('viewer')">
-                <i class="fas fa-eye"></i> Ver
-            </button>
-            <button class="mode-btn" [class.active]="viewMode() === 'creator'" (click)="setViewMode('creator')">
-                <i class="fas fa-pen-nib"></i> Crear
-            </button>
-        </div>
+        <!-- Eliminado el switcher de modos, solo se muestra el formulario de creación/edición -->
 
         <!-- MODO VISOR: Lista de Rutas -->
-        @if (viewMode() === 'viewer') {
-        <div class="sidebar-content fade-in">
-            <div class="sidebar-header">
-                <h1>Rutas Tijuana</h1>
-                <p>Sistema de Transporte Público</p>
-            </div>
-
-            <div class="search-container">
-                <div class="search-wrapper">
-                    <i class="fas fa-search search-icon"></i>
-                    <input type="text" placeholder="Buscar destino..." class="search-input"
-                        (input)="filterRoutes($event)" />
-                </div>
-            </div>
-
-            <div class="routes-list">
-                @for (route of filteredRoutes(); track route.id) {
-                <div (click)="selectRoute(route)" class="route-card" [class.active]="selectedRoute()?.id === route.id"
-                    [style.border-left-color]="selectedRoute()?.id === route.id ? route.color : 'transparent'">
-                    @if(selectedRoute()?.id !== route.id) {
-                    <div class="color-strip" [style.backgroundColor]="route.color"></div>
-                    }
-                    <div class="route-content">
-                        <div class="route-header">
-                            <h3 class="route-name">{{ route.name }}</h3>
-                            <span class="route-type">{{ route.type }}</span>
-                        </div>
-                        <div class="landmarks-container">
-                            @for (mark of route.landmarks.slice(0, 3); track mark) {
-                            <span class="landmark-tag">{{ mark }}</span>
-                            }
-                        </div>
-                    </div>
-                </div>
-                }
-            </div>
-        </div>
-        }
+        <!-- Eliminado el modo viewer y la lista de rutas, solo formulario -->
 
         <!-- MODO CREADOR: Formulario -->
-        @if (viewMode() === 'creator') {
         <div class="sidebar-content creator-panel fade-in">
             <div class="sidebar-header creator-header">
                 <h1>Nueva Ruta</h1>
@@ -73,11 +26,37 @@
 
             <div class="form-container">
                 <div class="form-group">
-                    <label>Nombre de la Ruta</label>
-                    <input type="text" [(ngModel)]="newRoute.name" placeholder="Ej. Rojo y Negro Centro"
-                        class="form-input">
+                    <label>Inicio de Ruta</label>
+                    <input type="text" [(ngModel)]="newRoute.from" placeholder="Ej. Centro" class="form-input">
+                </div>
+                <div class="form-group">
+                    <label>Fin de Ruta</label>
+                    <input type="text" [(ngModel)]="newRoute.to" placeholder="Ej. Pinos" class="form-input">
                 </div>
 
+                <div class="form-group">
+                    <div class="label-with-checkbox">
+                        <label>Horario</label>
+                        <label class="checkbox-label">
+                            <input type="checkbox" [checked]="is24Hours" (change)="is24Hours = !is24Hours">
+                            <span>24 horas</span>
+                        </label>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group half">
+                        <label class="sublabel">Inicio</label>
+                        <input type="text" [(ngModel)]="safeSchedule.start" placeholder="Ej. 6:00 AM"
+                            class="form-input" [disabled]="is24Hours">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group half">
+                        <label class="sublabel">Fin</label>
+                        <input type="text" [(ngModel)]="safeSchedule.end" placeholder="Ej. 11:00 PM"
+                            class="form-input" [disabled]="is24Hours">
+                    </div>
+                </div>
                 <div class="form-row">
                     <div class="form-group half">
                         <label>Tipo</label>
@@ -87,6 +66,8 @@
                             <option value="calafia">Calafia</option>
                         </select>
                     </div>
+                </div>
+                <div class="form-row">
                     <div class="form-group half">
                         <label>Color</label>
                         <div class="color-picker-wrapper">
@@ -98,13 +79,13 @@
                 </div>
 
                 <div class="form-group">
-                    <label>Descripción</label>
-                    <textarea [(ngModel)]="newRoute.description" rows="3" placeholder="Detalles del recorrido..."
+                    <label>Descripción del transporte</label>
+                    <textarea [(ngModel)]="newRoute.description" rows="3" placeholder="Ej. Taxi blanco con franjas rojas"
                         class="form-input"></textarea>
                 </div>
 
                 <div class="form-group">
-                    <label>Puntos Clave (Separados por coma)</label>
+                    <label>Puntos Principales de la Ruta (Separados por coma)</label>
                     <input type="text" [(ngModel)]="landmarksString" placeholder="Centro, 5y10, Otay..."
                         class="form-input">
                 </div>
@@ -125,7 +106,7 @@
                 </div>
 
                 <button (click)="saveNewRoute()" class="btn-primary">
-                    <i class="fas fa-save"></i> Generar JSON
+                    <i class="fas fa-save"></i> Guardar Ruta
                 </button>
 
                 <div class="instruction-text">
@@ -134,45 +115,24 @@
                 </div>
             </div>
         </div>
-        }
+        <!-- Eliminado cierre de bloque incorrecto -->
     </aside>
 
     <!-- OVERLAY para Mobile -->
-    @if (isSidebarOpen()) {
-    <div class="overlay" (click)="toggleSidebar()"></div>
-    }
+    <!-- Overlay eliminado: no hay sidebar dinámico -->
 
     <!-- ÁREA DEL MAPA -->
     <main class="main-content">
         <!-- Mapa Visor -->
-        <div id="map-viewer" class="map-container" [class.hidden]="viewMode() !== 'viewer'"></div>
-
-        <!-- Mapa Creador -->
-        <div id="map-creator" class="map-container" [class.hidden]="viewMode() !== 'creator'"></div>
+        <!-- Solo mostrar el mapa de creación -->
+        <div id="map-creator" class="map-container"></div>
 
         <!-- Tarjeta Info (Solo Visor) -->
-        @if (viewMode() === 'viewer' && selectedRoute()) {
-        <div class="info-card" [style.border-color]="selectedRoute()?.color">
-            <div class="info-header">
-                <div>
-                    <span class="info-subtitle">Ruta Seleccionada</span>
-                    <h2 class="info-title">{{ selectedRoute()?.name }}</h2>
-                </div>
-                <button (click)="clearSelection()" class="close-btn"><i class="fas fa-times"></i></button>
-            </div>
-            <p class="info-description">{{ selectedRoute()?.description }}</p>
-            <div class="info-landmarks">
-                <div class="tags-wrapper">
-                    @for (mark of selectedRoute()?.landmarks; track mark) { <span class="tag">{{ mark }}</span> }
-                </div>
-            </div>
-        </div>
-        }
+        <!-- Eliminada la tarjeta de info de ruta seleccionada -->
     </main>
 
     <!-- Modal JSON (Salida) -->
-    @if (showJsonModal) {
-    <div class="modal-backdrop">
+    <div class="modal-backdrop" *ngIf="showJsonModal">
         <div class="modal">
             <h3>JSON Generado</h3>
             <p>Copia esto a tu base de datos:</p>
@@ -183,5 +143,4 @@
             </div>
         </div>
     </div>
-    }
-</div>
+<!-- Fin del contenedor principal -->

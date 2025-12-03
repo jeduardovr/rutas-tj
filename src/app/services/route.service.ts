@@ -33,7 +33,6 @@ export class RouteService {
   }
 
   updateRoute(id: string, routeData: any): Observable<any> {
-    // Asegúrate de que tu backend espera el ID en la URL
-    return this.http.put(`${this.apiUrl}${id}`, routeData);
+    return this.http.put(`${this.apiUrl}route/${id}`, routeData);
   }
 }

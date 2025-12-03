@@ -1,15 +1,18 @@
 import { Component, computed, signal, OnInit, AfterViewInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { CreateRouteComponent } from '../create-route/create-route.component';
 import { RouteData } from '@interfaces';
 import { RouteService } from '@services/route.service';
+import { AuthService } from '@services/auth.service';
+import { Router } from '@angular/router';
 
 @Component({
   selector: 'app-home',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, CreateRouteComponent],
   templateUrl: './home.component.html',
-  styleUrl: './home.component.css'
+  styleUrls: ['./home.component.css']
 })
 export class HomeComponent implements OnInit, AfterViewInit {
   // --- ESTADO ---
@@ -18,13 +21,19 @@ export class HomeComponent implements OnInit, AfterViewInit {
   searchQuery = signal('');
   selectedRoute = signal<RouteData | null>(null);
   isLoading = signal(false);
-  isEditing = signal<boolean>(false); // Estado de ed ición
+  isEditing = signal<boolean>(false); // Estado de edición
+  is24Hours = false;
 
   // Creator State
   landmarksString = '';
   newRoute: RouteData = {
-    name: '',
+    from: '',
+    to: '',
     type: 'taxi',
+    schedule: {
+      start: '',
+      end: ''
+    },
     color: '#3b82f6',
     description: '',
     path: [],
@@ -33,12 +42,11 @@ export class HomeComponent implements OnInit, AfterViewInit {
   showJsonModal = false;
   generatedJson = '';
 
+  // --- AUTH STATE ---
+
   // --- MAPAS ---
   private mapViewer: any;
-  private mapCreator: any;
   private viewerPolyline: any;
-  private creatorPolyline: any;
-  private creatorMarkers: any[] = [];
 
   // Rutas cargadas desde el servidor
   routes = signal<RouteData[]>([]);
@@ -46,12 +54,37 @@ export class HomeComponent implements OnInit, AfterViewInit {
   filteredRoutes = computed(() => {
     const q = this.searchQuery().toLowerCase();
     return this.routes().filter(r =>
-      r.name.toLowerCase().includes(q) ||
+      r.from.toLowerCase().includes(q) ||
+      r.to.toLowerCase().includes(q) ||
       r.landmarks.some(l => l.toLowerCase().includes(q))
     );
   });
 
-  constructor(private routeService: RouteService) { }
+  onSaveRoute(route: RouteData) {
+    // Aquí puedes guardar la ruta (crear o editar)
+    // Por ejemplo, llamar a tu servicio y luego regresar a modo viewer
+    this.newRoute = {
+      from: '',
+      to: '',
+      type: 'taxi',
+      schedule: {
+        start: '',
+        end: ''
+      },
+      color: '#3b82f6',
+      description: '',
+      path: [],
+      landmarks: []
+    };
+    this.viewMode.set('viewer');
+  }
+
+  onCancelCreateRoute() {
+    // Regresa a modo viewer sin guardar
+    this.viewMode.set('viewer');
+  }
+
+  constructor(private routeService: RouteService, public authService: AuthService, private router: Router) { }
 
   ngOnInit() {
     this.loadLeafletResources();
@@ -80,6 +113,8 @@ export class HomeComponent implements OnInit, AfterViewInit {
         this.initViewerMap();
       }
     }, 100);
+
+    // (Google sign-in moved to standalone Login page)
   }
 
   loadLeafletResources() {
@@ -105,26 +140,12 @@ export class HomeComponent implements OnInit, AfterViewInit {
 
   setViewMode(mode: 'viewer' | 'creator') {
     this.viewMode.set(mode);
-
-    // 💡 FIX: Esperamos a que Angular actualice el DOM antes de manipular los mapas
     setTimeout(() => {
       if (mode === 'viewer' && this.mapViewer) {
         this.mapViewer.invalidateSize();
-      } else if (mode === 'creator') {
-        if (!this.mapCreator) {
-          // Inicializamos el mapa creador si no existe
-          this.initCreatorMap();
-        }
-        // 💡 FIX CRÍTICO: Siempre redibujamos el mapa después de hacerlo visible
-        // Usamos requestAnimationFrame para asegurar que el contenedor es visible
-        requestAnimationFrame(() => {
-          if (this.mapCreator) {
-            this.mapCreator.invalidateSize();
-          }
-        });
       }
+      // Ya no inicializamos ni manipulamos el mapa creator aquí
     }, 100);
-
     if (window.innerWidth < 768) {
       this.isSidebarOpen.set(false);
     }
@@ -200,143 +221,42 @@ export class HomeComponent implements OnInit, AfterViewInit {
     this.isEditing.set(true);
     this.newRoute = { ...route };
     this.landmarksString = route.landmarks ? route.landmarks.join(', ') : '';
+    if (route.path && typeof route.path === 'object' && 'coordinates' in route.path) {
+      const geoCoords = route.path.coordinates as [number, number][];
+      this.newRoute.path = geoCoords.map(coord => [coord[1], coord[0]] as [number, number]);
+    }
     this.setViewMode('creator');
-
-    // Esperamos a que el mapa se inicialice antes de cargar el path
-    setTimeout(() => {
-      if (this.mapCreator && this.newRoute.path && Array.isArray(this.newRoute.path)) {
-        this.loadPathIntoCreatorMap(this.newRoute.path as [number, number][]);
-      }
-    }, 200);
-
+    // Ya no llamamos a loadPathIntoCreatorMap, CreateRouteComponent se encarga
     if (window.innerWidth < 768) this.isSidebarOpen.set(true);
   }
 
   resetCreator() {
     this.isEditing.set(false);
     this.newRoute = {
-      name: '', type: 'taxi', color: '#3b82f6', description: '', path: [], landmarks: []
+      from: '', to: '', type: 'taxi', schedule: { start: '', end: '' }, color: '#3b82f6', description: '', path: [], landmarks: []
     };
     this.landmarksString = '';
-    if (this.mapCreator) {
-      this.clearCreatorMap();
-    }
+    // Ya no llamamos a clearCreatorMap, CreateRouteComponent se encarga
   }
 
   // --- CREADOR LÓGICA ---
-  initCreatorMap() {
-    const L = (window as any).L;
-    this.mapCreator = L.map('map-creator', { zoomControl: false }).setView([32.5149, -117.0382], 12);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OSM' }).addTo(this.mapCreator);
-    L.control.zoom({ position: 'bottomright' }).addTo(this.mapCreator);
-
-    this.mapCreator.on('click', (e: any) => {
-      this.addCreatorPoint(e.latlng.lat, e.latlng.lng);
-    });
-  }
-
-  addCreatorPoint(lat: number, lng: number) {
-    const L = (window as any).L;
-
-    if (Array.isArray(this.newRoute.path)) {
-      this.newRoute.path.push([lat, lng]);
-    } else {
-      this.newRoute.path = [[lat, lng]];
-    }
-
-    const marker = L.circleMarker([lat, lng], {
-      radius: 5,
-      color: '#333',
-      fillColor: '#fff',
-      fillOpacity: 1,
-      weight: 2
-    }).addTo(this.mapCreator);
-    this.creatorMarkers.push(marker);
-
-    this.redrawCreatorPolyline();
-  }
-
-  loadPathIntoCreatorMap(path: [number, number][]) {
-    const L = (window as any).L;
-    if (!this.mapCreator) return;
-
-    this.clearCreatorMap();
-
-    if (!path || path.length === 0) return;
-
-    // Manejar tanto formato GeoJSON como array simple
-    let coordinates: [number, number][] = [];
-    if (typeof path === 'object' && 'coordinates' in path && Array.isArray((path as any).coordinates)) {
-      // GeoJSON format: convert [lng, lat] to [lat, lng]
-      coordinates = (path as any).coordinates.map((coord: any) => [coord[1], coord[0]]);
-    } else if (Array.isArray(path)) {
-      coordinates = path.map(p => [...p] as [number, number]);
-    } else {
-      return;
-    }
-
-    this.newRoute.path = coordinates;
-
-    coordinates.forEach(coords => {
-      const [lat, lng] = coords;
-      const marker = L.circleMarker([lat, lng], {
-        radius: 5, color: '#333', fillColor: '#fff', fillOpacity: 1, weight: 2
-      }).addTo(this.mapCreator);
-      this.creatorMarkers.push(marker);
-    });
-
-    this.redrawCreatorPolyline();
-
-    const polyline = L.polyline(coordinates);
-    this.mapCreator.fitBounds(polyline.getBounds(), { padding: [50, 50] });
-  }
-
-  undoLastPoint() {
-    if (!Array.isArray(this.newRoute.path) || this.newRoute.path.length === 0) return;
-
-    this.newRoute.path.pop();
-
-    const L = (window as any).L;
-    const lastMarker = this.creatorMarkers.pop();
-    if (lastMarker) this.mapCreator.removeLayer(lastMarker);
-
-    this.redrawCreatorPolyline();
-  }
-
-  clearCreatorMap() {
-    const L = (window as any).L;
-    this.newRoute.path = [];
-
-    this.creatorMarkers.forEach(m => this.mapCreator.removeLayer(m));
-    this.creatorMarkers = [];
-
-    if (this.creatorPolyline) this.mapCreator.removeLayer(this.creatorPolyline);
-  }
-
-  redrawCreatorPolyline() {
-    const L = (window as any).L;
-
-    if (this.creatorPolyline) this.mapCreator.removeLayer(this.creatorPolyline);
-
-    if (Array.isArray(this.newRoute.path) && this.newRoute.path.length > 0) {
-      this.creatorPolyline = L.polyline(this.newRoute.path, {
-        color: this.newRoute.color,
-        weight: 4,
-        dashArray: '5, 10',
-        opacity: 0.7
-      }).addTo(this.mapCreator);
-    }
-  }
-
-  updateCreatorPolylineStyle() {
-    if (this.creatorPolyline) {
-      this.creatorPolyline.setStyle({ color: this.newRoute.color });
-    }
-  }
+  // initCreatorMap() eliminado, ahora es responsabilidad de CreateRouteComponent
+  // addCreatorPoint() eliminado
+  // loadPathIntoCreatorMap() eliminado
+  // undoLastPoint() eliminado
+  // removePoint() eliminado
+  // clearCreatorMap() eliminado
+  // redrawCreatorPolyline() eliminado
+  // updateCreatorPolylineStyle() eliminado
 
   saveNewRoute() {
-    if (!this.newRoute.name.trim()) {
-      alert('Por favor ingresa un nombre para la ruta');
+    if (!this.authService.isLoggedIn()) {
+      alert('Necesitas iniciar sesión para crear una ruta.');
+      this.goToLogin();
+      return;
+    }
+    if (!this.newRoute.from.trim() || !this.newRoute.to.trim()) {
+      alert('Por favor ingresa el inicio y fin de la ruta');
       return;
     }
 
@@ -354,36 +274,48 @@ export class HomeComponent implements OnInit, AfterViewInit {
     };
 
     const routeData = {
-      name: this.newRoute.name,
+      from: this.newRoute.from,
+      to: this.newRoute.to,
       type: this.newRoute.type,
+      schedule: this.newRoute.schedule,
       color: this.newRoute.color,
       description: this.newRoute.description,
       landmarks: this.newRoute.landmarks,
       path: geoJsonPath,
-      active: true
+      active: true,
+      user: '' // TODO: Add user tracking
     };
 
-    this.routeService.createRoute(routeData).subscribe({
-      next: (response) => {
-        alert('✅ Ruta guardada exitosamente');
-        this.newRoute = {
-          name: '',
-          type: 'taxi',
-          color: '#3b82f6',
-          description: '',
-          path: [],
-          landmarks: []
-        };
-        this.landmarksString = '';
-        this.clearCreatorMap();
-        this.loadRoutes();
-        this.setViewMode('viewer');
-      },
-      error: (error) => {
-        console.error('Error al guardar ruta:', error);
-        alert('❌ Error al guardar la ruta. Por favor intenta de nuevo.');
-      }
-    });
+    // Verificar si estamos editando o creando
+    if (this.isEditing() && this.newRoute._id) {
+      // Actualizar ruta existente
+      this.routeService.updateRoute(this.newRoute._id, routeData).subscribe({
+        next: (response) => {
+          alert('✅ Ruta actualizada exitosamente');
+          this.resetCreator();
+          this.loadRoutes();
+          this.setViewMode('viewer');
+        },
+        error: (error) => {
+          console.error('Error al actualizar ruta:', error);
+          alert('❌ Error al actualizar la ruta. Por favor intenta de nuevo.');
+        }
+      });
+    } else {
+      // Crear nueva ruta
+      this.routeService.createRoute(routeData).subscribe({
+        next: (response) => {
+          alert('✅ Ruta guardada exitosamente');
+          this.resetCreator();
+          this.loadRoutes();
+          this.setViewMode('viewer');
+        },
+        error: (error) => {
+          console.error('Error al guardar ruta:', error);
+          alert('❌ Error al guardar la ruta. Por favor intenta de nuevo.');
+        }
+      });
+    }
   }
 
   getPathLength(): number {
@@ -391,5 +323,48 @@ export class HomeComponent implements OnInit, AfterViewInit {
       return this.newRoute.path.length;
     }
     return 0;
+  }
+
+  toggle24Hours() {
+    this.is24Hours = !this.is24Hours;
+    if (this.is24Hours && this.newRoute.schedule) {
+      this.newRoute.schedule.start = '24 horas';
+      this.newRoute.schedule.end = '24 horas';
+    } else if (this.newRoute.schedule) {
+      this.newRoute.schedule.start = '';
+      this.newRoute.schedule.end = '';
+    }
+  }
+
+  // Login is handled in the separate LoginComponent
+
+  goToLogin() {
+    this.router.navigate(['/login']);
+  }
+
+  logout() {
+    this.authService.logout();
+    this.setViewMode('viewer');
+    this.resetCreator();
+  }
+
+  // Google handlers removed; managed in LoginComponent
+
+  // Override startEditing to check auth
+  overrideStartEditing(route: RouteData) {
+    if (!this.authService.isLoggedIn()) {
+      this.goToLogin();
+      return;
+    }
+    this.startEditing(route);
+  }
+
+  // Override setViewMode for creator to check auth
+  overrideSetViewMode(mode: 'viewer' | 'creator') {
+    if (mode === 'creator' && !this.authService.isLoggedIn()) {
+      this.goToLogin();
+      return;
+    }
+    this.setViewMode(mode);
   }
 }

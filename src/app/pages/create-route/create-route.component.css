@@ -1,4 +1,4 @@
- /* --- Estilos Generales --- */
+/* --- Estilos Generales --- */
  * {
      box-sizing: border-box;
  }
@@ -279,20 +279,24 @@
 
  .form-row {
      display: flex;
-     gap: 1rem;
+     flex-direction: row;
+     align-items: center;
+     margin-bottom: 12px;
  }
 
- .half {
+ .form-group.half {
      flex: 1;
+     min-width: 0;
+ }
+
+ .form-group {
+     margin-bottom: 0;
  }
 
  .color-picker-wrapper {
      display: flex;
      align-items: center;
-     gap: 0.5rem;
-     border: 1px solid #d1d5db;
-     padding: 0.3rem;
-     border-radius: 4px;
+     gap: 8px;
  }
 
  .color-input {
@@ -305,9 +309,8 @@
  }
 
  .color-value {
-     font-size: 0.8rem;
-     color: #666;
-     font-family: monospace;
+     font-size: 0.95em;
+     color: #333;
  }
 
  .creator-stats {
@@ -400,11 +403,15 @@
      flex: 1;
      position: relative;
      z-index: 10;
+     height: 100vh;
+     min-height: 100vh;
+     overflow: hidden;
  }
 
  .map-container {
      width: 100%;
-     height: 100%;
+     height: 100vh;
+     min-height: 100vh;
      background: #e5e7eb;
  }
 
