@@ -32,6 +32,11 @@ export class RouteService {
     return this.http.post(`${this.apiUrl}route/`, route);
   }
 
+  // Proponer una nueva ruta (para usuarios no admin)
+  proposeRoute(route: any): Observable<any> {
+    return this.http.post(`${this.apiUrl}route/propose`, route);
+  }
+
   updateRoute(id: string, routeData: any): Observable<any> {
     return this.http.put(`${this.apiUrl}route/${id}`, routeData);
   }

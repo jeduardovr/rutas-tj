@@ -98,8 +98,8 @@ export class AuthService {
         );
     }
 
-    googleLogin(credential: string): Observable<any> {
-        return this.http.post(`${this.apiUrl}user/google`, { credential }).pipe(
+    googleLogin(credential: string, mode: 'login' | 'register'): Observable<any> {
+        return this.http.post(`${this.apiUrl}user/google`, { credential, mode }).pipe(
             tap((response: any) => this.handleAuthResponse(response))
         );
     }
