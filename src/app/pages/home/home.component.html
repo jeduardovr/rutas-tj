@@ -36,25 +36,20 @@
                 @if (!authService.isLoggedIn()) {
                 <button class="btn-login styled-login" (click)="goToLogin()" title="Iniciar sesión">
                     <i class="fas fa-sign-in-alt"></i>
-                    <!-- <span class="login-label">Iniciar Sesión</span> -->
-                </button>
+                    </button>
                 } @else {
-                <div class="user-profile">
+                <button class="nav-item user-profile-btn" (click)="logout()" 
+                        title="{{ authService.currentUser()?.name }} (Cerrar Sesión)">
                     <div class="user-avatar">
                         {{ authService.currentUser()?.name?.charAt(0) || 'U' }}
                     </div>
-                    <div class="user-info">
-                        <span class="user-name">{{ authService.currentUser()?.name }}</span>
-                        <button class="btn-logout" (click)="logout()">Cerrar Sesión</button>
-                    </div>
-                </div>
+                </button>
                 }
                 <small class="version-text">v1.0</small>
             </div>
         </nav>
-
+        
         <div class="panel-content">
-
             @if (viewMode() === 'viewer') {
             <div class="panel-view fade-in">
                 <div class="panel-header">
@@ -138,8 +133,12 @@
                             [isEditing]="isEditing()"
                             [is24Hours]="is24Hours"
                             [landmarksString]="landmarksString"
-                            (saveRoute)="onSaveRoute($event)"
+                            [pathLength]="getPathLength()"
+                            (saveRoute)="saveNewRoute()"
                             (cancel)="onCancelCreateRoute()"
+                            (undoPoint)="undoLastPoint()"    
+                            (clearMap)="clearCreatorMap()"    
+                            (updateColor)="updateCreatorPolylineStyle()" 
                         ></app-create-route>
         </div>
     </aside>
@@ -150,6 +149,8 @@
 
     <main class="main-content">
         <div id="map-viewer" class="map-container" [class.hidden]="viewMode() !== 'viewer'"></div>
+
+        <div id="map-creator" class="map-container" [class.hidden]="viewMode() !== 'creator'"></div>
 
         @if (viewMode() === 'viewer' && selectedRoute()) {
         <div class="info-card fade-in">
@@ -196,5 +197,3 @@
         }
     </main>
 </div>
-
-<!-- Login modal removed; moved to standalone /login page -->

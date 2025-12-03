@@ -47,6 +47,10 @@ export class HomeComponent implements OnInit, AfterViewInit {
   // --- MAPAS ---
   private mapViewer: any;
   private viewerPolyline: any;
+  // Propiedades del mapa creador (AÑADIDAS)
+  private mapCreator: any;
+  private creatorPolyline: any;
+  private creatorMarkers: any[] = [];
 
   // Rutas cargadas desde el servidor
   routes = signal<RouteData[]>([]);
@@ -60,9 +64,8 @@ export class HomeComponent implements OnInit, AfterViewInit {
     );
   });
 
+  // onSaveRoute eliminado o modificado: el guardado real lo hace saveNewRoute
   onSaveRoute(route: RouteData) {
-    // Aquí puedes guardar la ruta (crear o editar)
-    // Por ejemplo, llamar a tu servicio y luego regresar a modo viewer
     this.newRoute = {
       from: '',
       to: '',
@@ -113,8 +116,6 @@ export class HomeComponent implements OnInit, AfterViewInit {
         this.initViewerMap();
       }
     }, 100);
-
-    // (Google sign-in moved to standalone Login page)
   }
 
   loadLeafletResources() {
@@ -144,7 +145,12 @@ export class HomeComponent implements OnInit, AfterViewInit {
       if (mode === 'viewer' && this.mapViewer) {
         this.mapViewer.invalidateSize();
       }
-      // Ya no inicializamos ni manipulamos el mapa creator aquí
+      if (mode === 'creator') {
+        this.initCreatorMap();
+        if (this.mapCreator) {
+             this.mapCreator.invalidateSize();
+        }
+      }
     }, 100);
     if (window.innerWidth < 768) {
       this.isSidebarOpen.set(false);
@@ -221,12 +227,26 @@ export class HomeComponent implements OnInit, AfterViewInit {
     this.isEditing.set(true);
     this.newRoute = { ...route };
     this.landmarksString = route.landmarks ? route.landmarks.join(', ') : '';
+    let initialPath: [number, number][] = [];
     if (route.path && typeof route.path === 'object' && 'coordinates' in route.path) {
       const geoCoords = route.path.coordinates as [number, number][];
-      this.newRoute.path = geoCoords.map(coord => [coord[1], coord[0]] as [number, number]);
-    }
+      // Convertir [lng, lat] a [lat, lng] para Leaflet
+      initialPath = geoCoords.map(coord => [coord[1], coord[0]] as [number, number]);
+      this.newRoute.path = initialPath; 
+    } else if (Array.isArray(route.path)) {
+      initialPath = route.path;
+    } 
+
     this.setViewMode('creator');
-    // Ya no llamamos a loadPathIntoCreatorMap, CreateRouteComponent se encarga
+    
+    // CAMBIO: Inicializa y carga la ruta en el mapa creador
+    setTimeout(() => {
+        this.initCreatorMap();
+        if (initialPath.length > 0) {
+            this.loadPathIntoCreatorMap(initialPath);
+        }
+    }, 100);
+
     if (window.innerWidth < 768) this.isSidebarOpen.set(true);
   }
 
@@ -236,18 +256,96 @@ export class HomeComponent implements OnInit, AfterViewInit {
       from: '', to: '', type: 'taxi', schedule: { start: '', end: '' }, color: '#3b82f6', description: '', path: [], landmarks: []
     };
     this.landmarksString = '';
-    // Ya no llamamos a clearCreatorMap, CreateRouteComponent se encarga
+    this.clearCreatorMap(); 
   }
 
-  // --- CREADOR LÓGICA ---
-  // initCreatorMap() eliminado, ahora es responsabilidad de CreateRouteComponent
-  // addCreatorPoint() eliminado
-  // loadPathIntoCreatorMap() eliminado
-  // undoLastPoint() eliminado
-  // removePoint() eliminado
-  // clearCreatorMap() eliminado
-  // redrawCreatorPolyline() eliminado
-  // updateCreatorPolylineStyle() eliminado
+  // --- CREADOR LÓGICA (Movida desde CreateRouteComponent) ---
+  initCreatorMap() {
+    const L = (window as any).L;
+    const mapElement = document.getElementById('map-creator');
+    if (this.mapCreator && this.mapCreator._container) return; 
+    if (!mapElement) return;
+
+    this.mapCreator = L.map('map-creator', { zoomControl: false }).setView([32.5149, -117.0382], 12);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OSM' }).addTo(this.mapCreator);
+    L.control.zoom({ position: 'bottomright' }).addTo(this.mapCreator);
+    this.mapCreator.on('click', (e: any) => {
+      this.addCreatorPoint(e.latlng.lat, e.latlng.lng);
+    });
+    if (this.isEditing() && Array.isArray(this.newRoute?.path) && this.newRoute.path.length > 0) {
+      this.loadPathIntoCreatorMap(this.newRoute.path as [number, number][]);
+    }
+  }
+
+  addCreatorPoint(lat: number, lng: number) {
+    const L = (window as any).L;
+    if (!this.mapCreator) return;
+    if (Array.isArray(this.newRoute.path)) {
+      this.newRoute.path.push([lat, lng]);
+    } else {
+      this.newRoute.path = [[lat, lng]];
+    }
+    const marker = L.circleMarker([lat, lng], {
+      radius: 5, color: '#333', fillColor: '#fff', fillOpacity: 1, weight: 2
+    }).addTo(this.mapCreator);
+    this.creatorMarkers.push(marker);
+    this.redrawCreatorPolyline();
+  }
+
+  loadPathIntoCreatorMap(path: [number, number][]) {
+    const L = (window as any).L;
+    if (!this.mapCreator) return;
+    this.clearCreatorMap();
+    if (!path || path.length === 0) return;
+    this.newRoute.path = path.map(p => [...p]); 
+    path.forEach(coords => {
+      const [lat, lng] = coords;
+      const marker = L.circleMarker([lat, lng], {
+        radius: 5, color: '#333', fillColor: '#fff', fillOpacity: 1, weight: 2
+      }).addTo(this.mapCreator);
+      this.creatorMarkers.push(marker);
+    });
+    this.redrawCreatorPolyline();
+    const polyline = L.polyline(path);
+    this.mapCreator.fitBounds(polyline.getBounds(), { padding: [50, 50] });
+  }
+
+  undoLastPoint() {
+    if (!Array.isArray(this.newRoute.path) || this.newRoute.path.length === 0 || !this.mapCreator) return;
+    this.newRoute.path.pop();
+    const lastMarker = this.creatorMarkers.pop();
+    if (lastMarker) this.mapCreator.removeLayer(lastMarker);
+    this.redrawCreatorPolyline();
+  }
+
+  clearCreatorMap() {
+    if (!this.mapCreator) return;
+    this.newRoute.path = [];
+    this.creatorMarkers.forEach(m => this.mapCreator.removeLayer(m));
+    this.creatorMarkers = [];
+    if (this.creatorPolyline) this.mapCreator.removeLayer(this.creatorPolyline);
+    this.mapCreator.setView([32.5149, -117.0382], 12);
+  }
+
+  redrawCreatorPolyline() {
+    const L = (window as any).L;
+    if (!this.mapCreator) return;
+    if (this.creatorPolyline) this.mapCreator.removeLayer(this.creatorPolyline);
+    if (Array.isArray(this.newRoute.path) && this.newRoute.path.length > 0) {
+      this.creatorPolyline = L.polyline(this.newRoute.path, {
+        color: this.newRoute.color,
+        weight: 4,
+        dashArray: '5, 10',
+        opacity: 0.7
+      }).addTo(this.mapCreator);
+    }
+  }
+
+  updateCreatorPolylineStyle() {
+    if (this.creatorPolyline) {
+      this.creatorPolyline.setStyle({ color: this.newRoute.color });
+    }
+  }
 
   saveNewRoute() {
     if (!this.authService.isLoggedIn()) {
@@ -260,8 +358,8 @@ export class HomeComponent implements OnInit, AfterViewInit {
       return;
     }
 
-    if (!Array.isArray(this.newRoute.path) || this.newRoute.path.length === 0) {
-      alert('Por favor agrega al menos un punto en el mapa');
+    if (!Array.isArray(this.newRoute.path) || this.newRoute.path.length < 2) {
+      alert('Por favor agrega al menos dos puntos en el mapa');
       return;
     }
 
@@ -336,8 +434,6 @@ export class HomeComponent implements OnInit, AfterViewInit {
     }
   }
 
-  // Login is handled in the separate LoginComponent
-
   goToLogin() {
     this.router.navigate(['/login']);
   }
@@ -348,9 +444,6 @@ export class HomeComponent implements OnInit, AfterViewInit {
     this.resetCreator();
   }
 
-  // Google handlers removed; managed in LoginComponent
-
-  // Override startEditing to check auth
   overrideStartEditing(route: RouteData) {
     if (!this.authService.isLoggedIn()) {
       this.goToLogin();
@@ -359,7 +452,6 @@ export class HomeComponent implements OnInit, AfterViewInit {
     this.startEditing(route);
   }
 
-  // Override setViewMode for creator to check auth
   overrideSetViewMode(mode: 'viewer' | 'creator') {
     if (mode === 'creator' && !this.authService.isLoggedIn()) {
       this.goToLogin();
