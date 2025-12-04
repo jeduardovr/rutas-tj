@@ -135,4 +135,74 @@ export class AuthService {
     getToken(): string | null {
         return localStorage.getItem('token');
     }
+
+    isAdmin(): boolean {
+        const user = this.currentUser();
+        return user && (user.role === 'admin' || user.role?.name === 'SUPER ADMINISTRADOR');
+    }
+
+    /**
+     * Verifica si el usuario tiene acceso a una ruta específica
+     * @param route Ruta a verificar (ej: '/admin-proposals')
+     * @returns true si el usuario tiene acceso, false en caso contrario
+     */
+    hasAccessToRoute(route: string): boolean {
+        const user = this.currentUser();
+
+        if (!user) {
+            return false;
+        }
+
+        // Si el usuario tiene un objeto role con routes
+        if (user.role && typeof user.role === 'object' && Array.isArray(user.role.routes)) {
+            return user.role.routes.includes(route);
+        }
+
+        // Fallback: si no hay información de rutas, permitir acceso básico
+        return true;
+    }
+
+    /**
+     * Obtiene todas las rutas permitidas para el usuario actual
+     * @returns Array de rutas permitidas
+     */
+    getAllowedRoutes(): string[] {
+        const user = this.currentUser();
+
+        if (!user) {
+            return [];
+        }
+
+        // Si el usuario tiene un objeto role con routes
+        if (user.role && typeof user.role === 'object' && Array.isArray(user.role.routes)) {
+            return user.role.routes;
+        }
+
+        // Fallback: rutas básicas
+        return ['/home', '/login'];
+    }
+
+    /**
+     * Obtiene el nombre del rol del usuario
+     * @returns Nombre del rol o null
+     */
+    getRoleName(): string | null {
+        const user = this.currentUser();
+
+        if (!user) {
+            return null;
+        }
+
+        // Si el usuario tiene un objeto role con name
+        if (user.role && typeof user.role === 'object' && user.role.name) {
+            return user.role.name;
+        }
+
+        // Fallback: retornar el role si es string
+        if (typeof user.role === 'string') {
+            return user.role;
+        }
+
+        return null;
+    }
 }

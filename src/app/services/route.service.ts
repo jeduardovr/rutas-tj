@@ -40,4 +40,19 @@ export class RouteService {
   updateRoute(id: string, routeData: any): Observable<any> {
     return this.http.put(`${this.apiUrl}route/${id}`, routeData);
   }
+
+  // Obtener propuestas pendientes (solo admin)
+  getPendingProposals(): Observable<any> {
+    return this.http.get(`${this.apiUrl}route/pending`);
+  }
+
+  // Aprobar una propuesta (solo admin)
+  approveProposal(id: string, approvedBy?: string): Observable<any> {
+    return this.http.post(`${this.apiUrl}route/${id}/approve`, { approvedBy });
+  }
+
+  // Rechazar una propuesta (solo admin)
+  rejectProposal(id: string, reason?: string, rejectedBy?: string): Observable<any> {
+    return this.http.post(`${this.apiUrl}route/${id}/reject`, { reason, rejectedBy });
+  }
 }

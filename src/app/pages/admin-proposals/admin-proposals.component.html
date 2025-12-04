@@ -1,0 +1,187 @@
+<div class="admin-proposals-container">
+    <!-- Header -->
+    <header class="admin-header">
+        <button class="back-button" (click)="goBack()">
+            <i class="fas fa-arrow-left"></i> Volver
+        </button>
+        <h1>Propuestas de Rutas Pendientes</h1>
+        <div class="user-info">
+            <span>{{ authService.currentUser()?.name }}</span>
+            <span class="admin-badge">{{ authService.getRoleName() || 'Admin' }}</span>
+        </div>
+    </header>
+
+    <!-- Loading State -->
+    <div *ngIf="isLoading()" class="loading-container">
+        <div class="spinner"></div>
+        <p>Cargando propuestas...</p>
+    </div>
+
+    <!-- Empty State -->
+    <div *ngIf="!isLoading() && proposals().length === 0" class="empty-state">
+        <i class="fas fa-inbox"></i>
+        <h2>No hay propuestas pendientes</h2>
+        <p>Todas las propuestas han sido revisadas</p>
+    </div>
+
+    <!-- Proposals Grid -->
+    <div *ngIf="!isLoading() && proposals().length > 0" class="proposals-grid">
+        <!-- Proposals List -->
+        <div class="proposals-list">
+            <div class="proposals-count">
+                <span>{{ proposals().length }} propuesta(s) pendiente(s)</span>
+            </div>
+
+            <div class="proposal-card" *ngFor="let proposal of proposals()"
+                [class.selected]="selectedProposal()?._id === proposal._id" (click)="selectProposal(proposal)">
+                <div class="proposal-header">
+                    <div class="route-info">
+                        <h3>{{ proposal.from }} → {{ proposal.to }}</h3>
+                        <span class="route-type">{{ proposal.type }}</span>
+                    </div>
+                    <div class="route-color" [style.background-color]="proposal.color"></div>
+                </div>
+
+                <div class="proposal-meta">
+                    <div class="meta-item">
+                        <i class="fas fa-user"></i>
+                        <span>{{ proposal.proposedBy }}</span>
+                    </div>
+                    <div class="meta-item">
+                        <i class="fas fa-calendar"></i>
+                        <span>{{ formatDate(proposal.createdAt) }}</span>
+                    </div>
+                </div>
+
+                <div class="proposal-description" *ngIf="proposal.description">
+                    <p>{{ proposal.description }}</p>
+                </div>
+
+                <div class="proposal-actions">
+                    <button class="btn-approve" (click)="approveProposal(proposal); $event.stopPropagation()">
+                        <i class="fas fa-check"></i> Aprobar
+                    </button>
+                    <button class="btn-reject" (click)="openRejectModal(proposal); $event.stopPropagation()">
+                        <i class="fas fa-times"></i> Rechazar
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Proposal Details -->
+        <div class="proposal-details">
+            <div *ngIf="!selectedProposal()" class="no-selection">
+                <i class="fas fa-hand-pointer"></i>
+                <p>Selecciona una propuesta para ver los detalles</p>
+            </div>
+
+            <div *ngIf="selectedProposal()" class="details-content">
+                <h2>Detalles de la Propuesta</h2>
+
+                <div class="detail-section">
+                    <h3>Información de la Ruta</h3>
+                    <div class="detail-grid">
+                        <div class="detail-item">
+                            <label>Desde:</label>
+                            <span>{{ selectedProposal()?.from }}</span>
+                        </div>
+                        <div class="detail-item">
+                            <label>Hasta:</label>
+                            <span>{{ selectedProposal()?.to }}</span>
+                        </div>
+                        <div class="detail-item">
+                            <label>Tipo:</label>
+                            <span>{{ selectedProposal()?.type }}</span>
+                        </div>
+                        <div class="detail-item">
+                            <label>Color:</label>
+                            <div class="color-preview" [style.background-color]="selectedProposal()?.color"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="detail-section" *ngIf="selectedProposal()?.schedule">
+                    <h3>Horario</h3>
+                    <div class="detail-grid">
+                        <div class="detail-item">
+                            <label>Inicio:</label>
+                            <span>{{ selectedProposal()?.schedule?.start || 'No especificado' }}</span>
+                        </div>
+                        <div class="detail-item">
+                            <label>Fin:</label>
+                            <span>{{ selectedProposal()?.schedule?.end || 'No especificado' }}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="detail-section"
+                    *ngIf="selectedProposal()?.landmarks && selectedProposal()?.landmarks.length > 0">
+                    <h3>Puntos de Referencia</h3>
+                    <div class="landmarks-list">
+                        <span class="landmark-tag" *ngFor="let landmark of selectedProposal()?.landmarks">
+                            {{ landmark }}
+                        </span>
+                    </div>
+                </div>
+
+                <div class="detail-section">
+                    <h3>Mapa de la Ruta</h3>
+                    <div id="proposal-map" class="proposal-map"></div>
+                </div>
+
+                <div class="detail-section">
+                    <h3>Información del Solicitante</h3>
+                    <div class="detail-grid">
+                        <div class="detail-item">
+                            <label>Propuesto por:</label>
+                            <span>{{ selectedProposal()?.proposedBy }}</span>
+                        </div>
+                        <div class="detail-item">
+                            <label>Fecha:</label>
+                            <span>{{ formatDate(selectedProposal()?.createdAt) }}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="detail-actions">
+                    <button class="btn-approve-large" (click)="approveProposal(selectedProposal())">
+                        <i class="fas fa-check-circle"></i> Aprobar Propuesta
+                    </button>
+                    <button class="btn-reject-large" (click)="openRejectModal(selectedProposal())">
+                        <i class="fas fa-times-circle"></i> Rechazar Propuesta
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Reject Modal -->
+    <div class="modal-overlay" *ngIf="showRejectModal()" (click)="closeRejectModal()">
+        <div class="modal-content" (click)="$event.stopPropagation()">
+            <div class="modal-header">
+                <h2>Rechazar Propuesta</h2>
+                <button class="close-button" (click)="closeRejectModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+
+            <div class="modal-body">
+                <p>¿Estás seguro de que deseas rechazar esta propuesta?</p>
+                <p class="route-name">{{ selectedProposal()?.from }} → {{ selectedProposal()?.to }}</p>
+
+                <div class="form-group">
+                    <label for="rejectionReason">Razón del rechazo (opcional):</label>
+                    <textarea id="rejectionReason" [(ngModel)]="rejectionReason"
+                        placeholder="Explica por qué se rechaza esta propuesta..." rows="4"></textarea>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button class="btn-cancel" (click)="closeRejectModal()">Cancelar</button>
+                <button class="btn-confirm-reject" (click)="rejectProposal()">
+                    <i class="fas fa-times-circle"></i> Confirmar Rechazo
+                </button>
+            </div>
+        </div>
+    </div>
+</div>

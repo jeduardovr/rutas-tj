@@ -1,50 +1,60 @@
-import { Injectable } from '@angular/core';
-import { HttpEvent, HttpHandler, HttpInterceptor, HttpRequest, HttpErrorResponse } from '@angular/common/http';
-import { Observable, throwError } from 'rxjs';
-import { catchError } from 'rxjs/operators';
-import { AuthService } from './auth.service';
+import { HttpInterceptorFn, HttpErrorResponse } from '@angular/common/http';
+import { inject } from '@angular/core';
 import { Router } from '@angular/router';
+import { catchError, throwError } from 'rxjs';
+import { AuthService } from './auth.service';
 
-@Injectable()
-export class TokenInterceptor implements HttpInterceptor {
-  constructor(
-    private authService: AuthService,
-    private router: Router
-  ) { }
+export const authInterceptor: HttpInterceptorFn = (req, next) => {
+  const authService = inject(AuthService);
+  const router = inject(Router);
 
-  intercept(req: HttpRequest<any>, next: HttpHandler): Observable<HttpEvent<any>> {
-    const token = this.authService.getToken();
+  const token = authService.getToken();
 
-    // Solo agregar el token si existe y es válido
-    if (token && this.authService.isTokenValid()) {
-      const cloned = req.clone({
-        setHeaders: {
-          Authorization: `Bearer ${token}`
-        }
-      });
+  console.log('🔐 Interceptor - Token:', token ? `${token.substring(0, 20)}...` : 'NO TOKEN');
+  console.log('🔐 Interceptor - Token válido:', authService.isTokenValid());
+  console.log('🔐 Interceptor - URL:', req.url);
 
-      return next.handle(cloned).pipe(
-        catchError((error: HttpErrorResponse) => {
-          if (error.status === 401) {
-            // Token inválido o expirado según el servidor
-            console.warn('Respuesta 401: Token inválido o expirado. Cerrando sesión...');
-            this.authService.logout();
-            this.router.navigate(['/']);
-          }
-          return throwError(() => error);
-        })
-      );
-    }
+  // Solo agregar el token si existe y es válido
+  if (token && authService.isTokenValid()) {
+    const cloned = req.clone({
+      setHeaders: {
+        Authorization: `Bearer ${token}`
+      }
+    });
 
-    return next.handle(req).pipe(
+    console.log('✅ Token agregado al header Authorization');
+
+    return next(cloned).pipe(
       catchError((error: HttpErrorResponse) => {
+        console.error('❌ Error en petición:', error.status, error.message);
         if (error.status === 401) {
-          console.warn('Respuesta 401: No autenticado.');
-          this.authService.logout();
-          this.router.navigate(['/']);
+          // Token inválido o expirado según el servidor
+          console.warn('Respuesta 401: Token inválido o expirado. Cerrando sesión...');
+          authService.logout();
+          router.navigate(['/login']);
+        }
+        if (error.status === 403) {
+          console.warn('Respuesta 403: Acceso denegado.');
         }
         return throwError(() => error);
       })
     );
   }
-}
+
+  console.log('⚠️ Token NO agregado (no existe o no es válido)');
+
+  return next(req).pipe(
+    catchError((error: HttpErrorResponse) => {
+      console.error('❌ Error en petición sin token:', error.status, error.message);
+      if (error.status === 401) {
+        console.warn('Respuesta 401: No autenticado.');
+        authService.logout();
+        router.navigate(['/login']);
+      }
+      if (error.status === 403) {
+        console.warn('Respuesta 403: Acceso denegado. Token no enviado o inválido.');
+      }
+      return throwError(() => error);
+    })
+  );
+};

@@ -404,11 +404,17 @@ export class HomeComponent implements OnInit, AfterViewInit {
       landmarks: this.newRoute.landmarks,
       path: geoJsonPath,
       active: true,
-      user: '' // TODO: Add user tracking
+      user: this.authService.currentUser()?.email || ''
     };
 
     // Verificar si estamos editando o creando
     if (this.isEditing() && this.newRoute._id) {
+      // Solo administradores pueden editar rutas existentes
+      if (!this.authService.isAdmin()) {
+        alert('❌ Solo los administradores pueden editar rutas.');
+        return;
+      }
+
       // Actualizar ruta existente
       this.routeService.updateRoute(this.newRoute._id, routeData).subscribe({
         next: (response) => {
@@ -423,19 +429,35 @@ export class HomeComponent implements OnInit, AfterViewInit {
         }
       });
     } else {
-      // Crear nueva ruta
-      this.routeService.createRoute(routeData).subscribe({
-        next: (response) => {
-          alert('✅ Ruta guardada exitosamente');
-          this.resetCreator();
-          this.loadRoutes();
-          this.setViewMode('viewer');
-        },
-        error: (error) => {
-          console.error('Error al guardar ruta:', error);
-          alert('❌ Error al guardar la ruta. Por favor intenta de nuevo.');
-        }
-      });
+      // Crear nueva ruta o proponer ruta
+      if (this.authService.isAdmin()) {
+        // Administradores crean rutas directamente
+        this.routeService.createRoute(routeData).subscribe({
+          next: (response) => {
+            alert('✅ Ruta creada exitosamente');
+            this.resetCreator();
+            this.loadRoutes();
+            this.setViewMode('viewer');
+          },
+          error: (error) => {
+            console.error('Error al guardar ruta:', error);
+            alert('❌ Error al guardar la ruta. Por favor intenta de nuevo.');
+          }
+        });
+      } else {
+        // Usuarios comunes proponen rutas para aprobación
+        this.routeService.proposeRoute(routeData).subscribe({
+          next: (response) => {
+            alert('✅ Tu propuesta de ruta ha sido enviada para aprobación. Un administrador la revisará pronto.');
+            this.resetCreator();
+            this.setViewMode('viewer');
+          },
+          error: (error) => {
+            console.error('Error al proponer ruta:', error);
+            alert('❌ Error al enviar la propuesta. Por favor intenta de nuevo.');
+          }
+        });
+      }
     }
   }
 
@@ -604,5 +626,9 @@ export class HomeComponent implements OnInit, AfterViewInit {
       return '/images/logo.png';
     }
     return `/images/${route.image}`;
+  }
+
+  goToAdminProposals() {
+    this.router.navigate(['/admin-proposals']);
   }
 }

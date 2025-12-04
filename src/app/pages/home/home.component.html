@@ -30,6 +30,13 @@
                     <span class="nav-label">Crear</span>
                 </button>
                 }
+
+                @if (authService.isLoggedIn() && authService.hasAccessToRoute('/admin-proposals')) {
+                <button class="nav-item" (click)="goToAdminProposals()" title="Administrar Propuestas">
+                    <div class="nav-icon"><i class="fas fa-tasks"></i></div>
+                    <span class="nav-label">Propuestas</span>
+                </button>
+                }
             </div>
 
             <div class="nav-footer">
@@ -146,6 +153,11 @@
             <div class="user-avatar" title="{{ authService.currentUser()?.name }}">
                 {{ authService.currentUser()?.name?.charAt(0) || 'U' }}
             </div>
+            @if (authService.hasAccessToRoute('/admin-proposals')) {
+            <button class="btn-admin-proposals" (click)="goToAdminProposals()" title="Administrar Propuestas">
+                <i class="fas fa-tasks"></i>
+            </button>
+            }
             <button class="btn-map-logout" (click)="logout()" title="Cerrar Sesión">
                 <i class="fas fa-sign-out-alt"></i>
             </button>
