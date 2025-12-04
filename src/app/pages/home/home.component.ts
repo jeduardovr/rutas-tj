@@ -598,4 +598,11 @@ export class HomeComponent implements OnInit, AfterViewInit {
 
     return `${distance.toFixed(1)} km al inicio`;
   }
+
+  getImage(route: RouteData): string {
+    if (!route.image) {
+      return '/images/logo.png';
+    }
+    return `/images/${route.image}`;
+  }
 }

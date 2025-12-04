@@ -19,4 +19,5 @@ export interface RouteData {
     };
     createdAt?: Date | string;
     updatedAt?: Date | string;
+    image?: string;
 }

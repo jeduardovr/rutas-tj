@@ -189,12 +189,8 @@
                 }
 
                 <div class="info-landmarks">
-                    <span class="info-label"><i class="fas fa-map-signs"></i> Puntos Clave:</span>
-                    <div class="tags-wrapper">
-                        @for (mark of selectedRoute()?.landmarks; track mark) {
-                        <span class="tag">{{ mark }}</span>
-                        }
-                    </div>
+                    <img [src]="getImage(selectedRoute()!)" alt="Imagen de la ruta"
+                        style="width: 100%; height: auto; border-radius: 8px;">
                 </div>
             </div>
         </div>
