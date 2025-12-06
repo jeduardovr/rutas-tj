@@ -70,6 +70,7 @@ export class AdminProposalsComponent implements OnInit {
 
   selectProposal(proposal: any) {
     this.selectedProposal.set(proposal);
+    this.isEditing.set(false);
 
     // Inicializar el mapa si no existe
     setTimeout(() => {
@@ -140,6 +141,174 @@ export class AdminProposalsComponent implements OnInit {
   closeRejectModal() {
     this.showRejectModal.set(false);
     this.rejectionReason = '';
+  }
+
+  isEditing = signal(false);
+  editForm: any = {};
+  // Variable para controlar si el mapa está en modo "captura de puntos"
+  isDrawing = signal(false);
+
+  startEdit(proposal: any) {
+    this.editForm = JSON.parse(JSON.stringify(proposal)); // Deep copy simple
+
+    // Normalizar datos para el formulario
+    if (this.editForm.type) {
+      this.editForm.type = this.editForm.type.toLowerCase();
+    }
+
+    // Asegurar que schedule existe para evitar errores
+    if (!this.editForm.schedule) {
+      this.editForm.schedule = { start: '', end: '' };
+    } else {
+      // Normalizar horas
+      this.editForm.schedule.start = this.convertTo24Hour(this.editForm.schedule.start);
+      this.editForm.schedule.end = this.convertTo24Hour(this.editForm.schedule.end);
+    }
+
+    // Asegurar path
+    if (!this.editForm.path) {
+      this.editForm.path = { coordinates: [] };
+    }
+
+    this.isEditing.set(true);
+    // Re-inicializar mapa con los datos del formulario de edición para que refleje cambios en tiempo real
+    setTimeout(() => {
+      this.initMap(this.editForm);
+      this.setupMapEventHandlers();
+    }, 100);
+  }
+
+  private convertTo24Hour(timeStr: string): string {
+    if (!timeStr) return '';
+    // Si ya es formato HH:mm, devolverlo
+    // Regex simple para HH:mm 24hrs
+    if (/^([01]\d|2[0-3]):([0-5]\d)$/.test(timeStr)) return timeStr;
+
+    // Intentar convertir AM/PM
+    const parts = timeStr.trim().split(' ');
+    // Si no hay espacio o formato raro, dejarlo pasar (el input lo ignorará o lo borrará si no es válido)
+    if (parts.length < 2) return timeStr;
+
+    const time = parts[0];
+    const modifier = parts[1];
+
+    let [hours, minutes] = time.split(':');
+
+    // Si no hay minutos definidas en string tipo "5 PM", asumir 00
+    if (!minutes) {
+      minutes = '00';
+    }
+
+    let hoursInt = parseInt(hours, 10);
+
+    // Ajuste AM/PM
+    if (modifier && modifier.toUpperCase() === 'PM' && hoursInt < 12) {
+      hoursInt += 12;
+    }
+    if (modifier && modifier.toUpperCase() === 'AM' && hoursInt === 12) {
+      hoursInt = 0;
+    }
+
+    return `${hoursInt.toString().padStart(2, '0')}:${minutes}`;
+  }
+
+  setupMapEventHandlers() {
+    if (!this.map) return;
+
+    this.map.off('click'); // Limpiar listeners anteriores
+    this.map.on('click', (e: any) => {
+      if (this.isEditing()) {
+        this.addPoint(e.latlng);
+      }
+    });
+  }
+
+  addPoint(latlng: any) {
+    // Leaflet usa [lat, lng], GeoJSON usa [lng, lat]
+    const newPoint = [latlng.lng, latlng.lat];
+
+    if (!this.editForm.path) this.editForm.path = { coordinates: [] };
+    if (!this.editForm.path.coordinates) this.editForm.path.coordinates = [];
+
+    this.editForm.path.coordinates.push(newPoint);
+
+    // Redibujar mapa
+    this.updateMapPolyline();
+  }
+
+  updateMapPolyline() {
+    const L = (window as any).L;
+    if (!L || !this.map) return;
+
+    // Remover polyline anterior
+    if (this.polyline) {
+      this.map.removeLayer(this.polyline);
+    }
+
+    const coordinates = this.editForm.path.coordinates.map((coord: [number, number]) => [coord[1], coord[0]]);
+
+    this.polyline = L.polyline(coordinates, {
+      color: this.editForm.color || '#3b82f6',
+      weight: 6,
+      opacity: 0.9,
+      lineJoin: 'round',
+      dashArray: '10, 10' // Estilo punteado para indicar edición
+    }).addTo(this.map);
+  }
+
+  clearPath() {
+    if (!confirm('¿Borrar toda la ruta traza?')) return;
+    if (this.editForm.path) {
+      this.editForm.path.coordinates = [];
+      this.updateMapPolyline();
+    }
+  }
+
+  undoLastPoint() {
+    if (this.editForm.path && this.editForm.path.coordinates.length > 0) {
+      this.editForm.path.coordinates.pop();
+      this.updateMapPolyline();
+    }
+  }
+
+  cancelEdit() {
+    this.isEditing.set(false);
+    this.editForm = {};
+    if (this.selectedProposal()) {
+      setTimeout(() => this.initMap(this.selectedProposal()), 100);
+    }
+  }
+
+  saveEdit() {
+    if (!this.selectedProposal()) return;
+
+    this.routeService.updateProposal(this.selectedProposal()._id, this.editForm).subscribe({
+      next: (response: any) => {
+        alert('✅ Propuesta actualizada correctamente');
+        this.isEditing.set(false);
+        const updatedProposal = response.data;
+
+        // Actualizar la lista localmente para reflejar cambios inmediatos
+        const currentProposals = this.proposals();
+        const index = currentProposals.findIndex(p => p._id === updatedProposal._id);
+        if (index !== -1) {
+          currentProposals[index] = updatedProposal;
+          this.proposals.set([...currentProposals]);
+        }
+
+        // Actualizar el seleccionado
+        this.selectedProposal.set(updatedProposal);
+
+        // Redibujar mapa si cambió el color o algo visual (opcional)
+        setTimeout(() => {
+          this.initMap(updatedProposal);
+        }, 100);
+      },
+      error: (error) => {
+        console.error('Error al actualizar propuesta:', error);
+        alert('❌ Error al actualizar la propuesta');
+      }
+    });
   }
 
   rejectProposal() {

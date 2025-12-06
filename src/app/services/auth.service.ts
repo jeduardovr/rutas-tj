@@ -11,10 +11,14 @@ export class AuthService {
     currentUser = signal<any>(null);
 
     constructor(private http: HttpClient) {
-        this.loadUserFromStorage();
+        // Initialization moved to AppComponent to avoid Circular Dependency in Interceptor
     }
 
-    private loadUserFromStorage() {
+    verifySession(): Observable<any> {
+        return this.http.get(`${this.apiUrl}user/verify`);
+    }
+
+    public loadUserFromStorage() {
         const token = localStorage.getItem('token');
         const user = localStorage.getItem('user');
 
@@ -25,6 +29,21 @@ export class AuthService {
                 this.logout();
             } else {
                 this.currentUser.set(JSON.parse(user));
+
+                // Validar sesión con el backend
+                this.verifySession().subscribe({
+                    next: (res) => {
+                        console.log('Sesión validada con éxito', res);
+                        if (res.user) {
+                            this.currentUser.set(res.user);
+                            localStorage.setItem('user', JSON.stringify(res.user));
+                        }
+                    },
+                    error: (err) => {
+                        console.warn('Sesión inválida en el backend. Cerrando sesión...', err);
+                        this.logout();
+                    }
+                });
             }
         }
     }

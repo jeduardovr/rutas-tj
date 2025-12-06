@@ -28,7 +28,8 @@ export class CreateRouteComponent implements OnInit {
 
   @Output() saveRoute = new EventEmitter<RouteData>();
   @Output() cancel = new EventEmitter<void>();
-  @Output() undoPoint = new EventEmitter<void>(); // CORREGIDO: Output para el botón deshacer
+  @Output() undoPoint = new EventEmitter<void>();
+  @Output() removePoint = new EventEmitter<number>();
   @Output() clearMap = new EventEmitter<void>();
   @Output() updateColor = new EventEmitter<string>();
 
@@ -52,7 +53,14 @@ export class CreateRouteComponent implements OnInit {
   getPathLength(): number {
     return this.pathLength;
   }
-  
+
+  getRoutePoints(): [number, number][] {
+    if (Array.isArray(this.newRoute.path)) {
+      return this.newRoute.path;
+    }
+    return [];
+  }
+
   // CORREGIDO: Función onColorChange para emitir el evento
   onColorChange() {
     this.updateColor.emit(this.newRoute.color);
@@ -68,7 +76,7 @@ export class CreateRouteComponent implements OnInit {
       return;
     }
     this.newRoute.landmarks = this.landmarksString.split(',').map(s => s.trim()).filter(s => s.length > 0);
-    
+
     // Aquí solo emitimos el evento. La lógica de API está en el padre.
     this.saveRoute.emit(this.newRoute);
   }

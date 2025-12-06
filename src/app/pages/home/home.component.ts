@@ -5,6 +5,7 @@ import { CreateRouteComponent } from '../create-route/create-route.component';
 import { RouteData } from '@interfaces';
 import { RouteService } from '@services/route.service';
 import { AuthService } from '@services/auth.service';
+import { AlertService } from '@services/alert.service';
 import { GeolocationService, UserLocation } from '@services/geolocation.service';
 import { Router } from '@angular/router';
 
@@ -23,6 +24,7 @@ export class HomeComponent implements OnInit, AfterViewInit {
   selectedRoute = signal<RouteData | null>(null);
   isLoading = signal(false);
   isEditing = signal<boolean>(false); // Estado de edición
+  isCardCollapsed = signal(false); // Estado colapsado del card en móvil
   is24Hours = false;
 
   // Creator State
@@ -109,6 +111,7 @@ export class HomeComponent implements OnInit, AfterViewInit {
     private routeService: RouteService,
     public authService: AuthService,
     private geolocationService: GeolocationService,
+    private alertService: AlertService,
     private router: Router
   ) { }
 
@@ -150,11 +153,6 @@ export class HomeComponent implements OnInit, AfterViewInit {
     const script = document.createElement('script');
     script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
     document.head.appendChild(script);
-
-    const fa = document.createElement('link');
-    fa.rel = 'stylesheet';
-    fa.href = 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css';
-    document.head.appendChild(fa);
   }
 
   // --- LÓGICA DE VISTAS ---
@@ -202,6 +200,7 @@ export class HomeComponent implements OnInit, AfterViewInit {
     if (routeId === selectedId) return;
 
     this.selectedRoute.set(route);
+    this.isCardCollapsed.set(false); // Resetear estado colapsado al seleccionar nueva ruta
 
     if (window.innerWidth < 768) {
       this.isSidebarOpen.set(false);
@@ -246,9 +245,35 @@ export class HomeComponent implements OnInit, AfterViewInit {
   }
 
   // --- LÓGICA DE EDICIÓN ---
+  // --- LÓGICA DE EDICIÓN ---
   startEditing(route: RouteData) {
     this.isEditing.set(true);
-    this.newRoute = { ...route };
+    // Copia profunda para evitar problemas con referencias anidadas (schedule)
+    this.newRoute = JSON.parse(JSON.stringify(route));
+
+    // Normalizar Tipo (lowercase)
+    if (this.newRoute.type) {
+      this.newRoute.type = this.newRoute.type.toLowerCase();
+    }
+
+    // Normalizar Horarios para input[type="time"] (HH:mm)
+    if (this.newRoute.schedule) {
+      this.newRoute.schedule.start = this.convertTo24Hour(this.newRoute.schedule.start);
+      this.newRoute.schedule.end = this.convertTo24Hour(this.newRoute.schedule.end);
+
+      // Chequear si es 24 horas
+      if (this.newRoute.schedule.start === '24 horas' || this.newRoute.schedule.end === '24 horas') {
+        this.is24Hours = true;
+        this.newRoute.schedule.start = '';
+        this.newRoute.schedule.end = '';
+      } else {
+        this.is24Hours = false;
+      }
+    } else {
+      this.newRoute.schedule = { start: '', end: '' };
+      this.is24Hours = false;
+    }
+
     this.landmarksString = route.landmarks ? route.landmarks.join(', ') : '';
     let initialPath: [number, number][] = [];
     if (route.path && typeof route.path === 'object' && 'coordinates' in route.path) {
@@ -271,6 +296,38 @@ export class HomeComponent implements OnInit, AfterViewInit {
     }, 100);
 
     if (window.innerWidth < 768) this.isSidebarOpen.set(true);
+  }
+
+  convertTo24Hour(timeStr: string): string {
+    if (!timeStr) return '';
+    // Si ya es formato HH:mm, devolverlo
+    if (/^([01]\d|2[0-3]):([0-5]\d)$/.test(timeStr)) return timeStr;
+
+    // Intentar convertir AM/PM
+    const parts = timeStr.trim().split(' ');
+    // Si no hay espacio (ej. "14:00" o "14"), o hay más de 2 partes y no encaja en logica simple
+    if (parts.length < 2) return timeStr;
+
+    const time = parts[0];
+    const modifier = parts[1];
+
+    let [hours, minutes] = time.split(':');
+
+    // Si no hay minutos, asumir 00
+    if (!minutes) {
+      minutes = '00';
+    }
+
+    let hoursInt = parseInt(hours, 10);
+
+    if (modifier.toUpperCase() === 'PM' && hoursInt < 12) {
+      hoursInt += 12;
+    }
+    if (modifier.toUpperCase() === 'AM' && hoursInt === 12) {
+      hoursInt = 0;
+    }
+
+    return `${hoursInt.toString().padStart(2, '0')}:${minutes}`;
   }
 
   resetCreator() {
@@ -341,6 +398,23 @@ export class HomeComponent implements OnInit, AfterViewInit {
     this.redrawCreatorPolyline();
   }
 
+  removeCreatorPoint(index: number) {
+    if (!Array.isArray(this.newRoute.path) || !this.mapCreator) return;
+
+    // Eliminar del array de path
+    this.newRoute.path.splice(index, 1);
+
+    // Eliminar marcador del mapa y del array de marcadores
+    const marker = this.creatorMarkers[index];
+    if (marker) {
+      this.mapCreator.removeLayer(marker);
+    }
+    this.creatorMarkers.splice(index, 1);
+
+    // Redibujar la línea
+    this.redrawCreatorPolyline();
+  }
+
   clearCreatorMap() {
     if (!this.mapCreator) return;
     this.newRoute.path = [];
@@ -370,19 +444,19 @@ export class HomeComponent implements OnInit, AfterViewInit {
     }
   }
 
-  saveNewRoute() {
+  async saveNewRoute() {
     if (!this.authService.isLoggedIn()) {
-      alert('Necesitas iniciar sesión para crear una ruta.');
+      await this.alertService.info('Iniciar Sesión', 'Necesitas iniciar sesión para crear una ruta.');
       this.goToLogin();
       return;
     }
     if (!this.newRoute.from.trim() || !this.newRoute.to.trim()) {
-      alert('Por favor ingresa el inicio y fin de la ruta');
+      await this.alertService.warning('Datos incompletos', 'Por favor ingresa el inicio y fin de la ruta');
       return;
     }
 
     if (!Array.isArray(this.newRoute.path) || this.newRoute.path.length < 2) {
-      alert('Por favor agrega al menos dos puntos en el mapa');
+      await this.alertService.warning('Mapa vacío', 'Por favor agrega al menos dos puntos en el mapa');
       return;
     }
 
@@ -411,21 +485,21 @@ export class HomeComponent implements OnInit, AfterViewInit {
     if (this.isEditing() && this.newRoute._id) {
       // Solo administradores pueden editar rutas existentes
       if (!this.authService.isAdmin()) {
-        alert('❌ Solo los administradores pueden editar rutas.');
+        await this.alertService.error('Sin Permiso', 'Solo los administradores pueden editar rutas.');
         return;
       }
 
       // Actualizar ruta existente
       this.routeService.updateRoute(this.newRoute._id, routeData).subscribe({
         next: (response) => {
-          alert('✅ Ruta actualizada exitosamente');
+          this.alertService.success('Éxito', 'Ruta actualizada exitosamente');
           this.resetCreator();
           this.loadRoutes();
           this.setViewMode('viewer');
         },
         error: (error) => {
           console.error('Error al actualizar ruta:', error);
-          alert('❌ Error al actualizar la ruta. Por favor intenta de nuevo.');
+          this.alertService.error('Error', 'Error al actualizar la ruta. Por favor intenta de nuevo.');
         }
       });
     } else {
@@ -434,27 +508,27 @@ export class HomeComponent implements OnInit, AfterViewInit {
         // Administradores crean rutas directamente
         this.routeService.createRoute(routeData).subscribe({
           next: (response) => {
-            alert('✅ Ruta creada exitosamente');
+            this.alertService.success('Éxito', 'Ruta creada exitosamente');
             this.resetCreator();
             this.loadRoutes();
             this.setViewMode('viewer');
           },
           error: (error) => {
             console.error('Error al guardar ruta:', error);
-            alert('❌ Error al guardar la ruta. Por favor intenta de nuevo.');
+            this.alertService.error('Error', 'Error al guardar la ruta. Por favor intenta de nuevo.');
           }
         });
       } else {
         // Usuarios comunes proponen rutas para aprobación
         this.routeService.proposeRoute(routeData).subscribe({
           next: (response) => {
-            alert('✅ Tu propuesta de ruta ha sido enviada para aprobación. Un administrador la revisará pronto.');
+            this.alertService.success('Propuesta Enviada', 'Tu propuesta de ruta ha sido enviada para aprobación. Un administrador la revisará pronto.');
             this.resetCreator();
             this.setViewMode('viewer');
           },
           error: (error) => {
             console.error('Error al proponer ruta:', error);
-            alert('❌ Error al enviar la propuesta. Por favor intenta de nuevo.');
+            this.alertService.error('Error', 'Error al enviar la propuesta. Por favor intenta de nuevo.');
           }
         });
       }
@@ -529,13 +603,13 @@ export class HomeComponent implements OnInit, AfterViewInit {
           console.log('Ubicación obtenida:', location);
           this.addUserLocationMarker(location);
         } else {
-          alert('No se pudo obtener tu ubicación. Por favor, permite el acceso a la ubicación en tu navegador.');
+          this.alertService.warning('Ubicación no disponible', 'No se pudo obtener tu ubicación. Por favor, permite el acceso a la ubicación en tu navegador.');
         }
       },
       error: (error) => {
         this.isLoadingLocation.set(false);
         console.error('Error al obtener ubicación:', error);
-        alert('Error al obtener tu ubicación. Por favor, verifica los permisos de ubicación.');
+        this.alertService.error('Error de ubicación', 'Error al obtener tu ubicación. Por favor, verifica los permisos de ubicación.');
       }
     });
   }
@@ -630,5 +704,41 @@ export class HomeComponent implements OnInit, AfterViewInit {
 
   goToAdminProposals() {
     this.router.navigate(['/admin-proposals']);
+  }
+
+  toggleCardState() {
+    this.isCardCollapsed.update(v => !v);
+  }
+
+  async deleteSelectedRoute() {
+    const route = this.selectedRoute();
+    if (!route || !route._id) return;
+
+    // Usar el nuevo servicio de alertas para confirmar
+    const confirmed = await this.alertService.confirm(
+      '¿Eliminar Ruta?',
+      '¿Estás seguro de que deseas eliminar esta ruta? Esta acción la desactivará de la vista pública.',
+      'Sí, eliminar',
+      'Cancelar'
+    );
+
+    if (confirmed) {
+      this.isLoading.set(true);
+      console.log(route._id);
+
+      this.routeService.deleteRoute(route._id).subscribe({
+        next: () => {
+          this.alertService.success('Eliminada', 'Ruta eliminada exitosamente');
+          this.clearSelection();
+          this.loadRoutes();
+          this.isLoading.set(false);
+        },
+        error: (error) => {
+          console.error('Error al eliminar ruta:', error);
+          this.alertService.error('Error', 'Error al eliminar la ruta. Inténtalo de nuevo.');
+          this.isLoading.set(false);
+        }
+      });
+    }
   }
 }

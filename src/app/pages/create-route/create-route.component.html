@@ -27,15 +27,13 @@
             <div class="form-row">
                 <div class="form-group half">
                     <label class="sublabel">Inicio</label>
-                    <input type="text" [(ngModel)]="safeSchedule.start" placeholder="Ej. 6:00 AM"
-                        class="form-input" [disabled]="is24Hours">
+                    <input type="time" [(ngModel)]="safeSchedule.start" class="form-input" [disabled]="is24Hours">
                 </div>
             </div>
             <div class="form-row">
                 <div class="form-group half">
                     <label class="sublabel">Fin</label>
-                    <input type="text" [(ngModel)]="safeSchedule.end" placeholder="Ej. 11:00 PM"
-                        class="form-input" [disabled]="is24Hours">
+                    <input type="time" [(ngModel)]="safeSchedule.end" class="form-input" [disabled]="is24Hours">
                 </div>
             </div>
             <div class="form-row">
@@ -52,8 +50,7 @@
                 <div class="form-group half">
                     <label>Color</label>
                     <div class="color-picker-wrapper">
-                        <input type="color" [(ngModel)]="newRoute.color" (change)="onColorChange()"
-                            class="color-input">
+                        <input type="color" [(ngModel)]="newRoute.color" (change)="onColorChange()" class="color-input">
                         <span class="color-value">{{newRoute.color}}</span>
                     </div>
                 </div>
@@ -65,10 +62,26 @@
                     class="form-input"></textarea>
             </div>
 
+            @if (getRoutePoints().length > 0) {
+            <div class="points-list">
+                <span class="points-header">Puntos del Mapa ({{ getRoutePoints().length }})</span>
+                <div class="points-container">
+                    @for (point of getRoutePoints(); track $index) {
+                    <div class="point-item">
+                        <span class="point-number">{{ $index + 1 }}</span>
+                        <code class="point-coords">{{ point[0].toFixed(5) }}, {{ point[1].toFixed(5) }}</code>
+                        <button class="btn-remove" (click)="removePoint.emit($index)" title="Eliminar punto">
+                            <i class="fas fa-trash-alt"></i>
+                        </button>
+                    </div>
+                    }
+                </div>
+            </div>
+            }
+
             <div class="form-group">
                 <label>Puntos Principales de la Ruta (Separados por coma)</label>
-                <input type="text" [(ngModel)]="landmarksString" placeholder="Centro, 5y10, Otay..."
-                    class="form-input">
+                <input type="text" [(ngModel)]="landmarksString" placeholder="Centro, 5y10, Otay..." class="form-input">
             </div>
 
             <div class="creator-stats">
@@ -100,7 +113,7 @@
             </div>
         </div>
     </div>
-    </div>
+</div>
 
 <div class="modal-backdrop" *ngIf="showJsonModal">
     <div class="modal">
@@ -109,7 +122,8 @@
         <textarea readonly class="json-output">{{ generatedJson }}</textarea>
         <div class="modal-actions">
             <button (click)="showJsonModal = false" class="btn-secondary">Cerrar</button>
-            <button (click)="showJsonModal = false; saveRoute.emit(newRoute)" class="btn-primary">Aceptar y Cerrar</button>
+            <button (click)="showJsonModal = false; saveRoute.emit(newRoute)" class="btn-primary">Aceptar y
+                Cerrar</button>
         </div>
     </div>
 </div>

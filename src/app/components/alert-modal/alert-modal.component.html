@@ -1,0 +1,25 @@
+@if (alertService.alertState(); as alert) {
+<div class="alert-backdrop fade-in">
+    <div class="alert-card slide-up">
+        <div class="alert-icon-wrapper" [class]="alert.type">
+            @if (alert.type === 'success') { <i class="fas fa-check"></i> }
+            @if (alert.type === 'error') { <i class="fas fa-times"></i> }
+            @if (alert.type === 'warning') { <i class="fas fa-exclamation"></i> }
+            @if (alert.type === 'info') { <i class="fas fa-info"></i> }
+        </div>
+
+        <h3 class="alert-title">{{ alert.title }}</h3>
+        <p class="alert-message">{{ alert.message }}</p>
+
+        <div class="alert-actions">
+            @if (alert.isConfirm) {
+            <button class="btn-cancel" (click)="onCancel()">{{ alert.cancelText || 'Cancelar' }}</button>
+            <button class="btn-confirm" (click)="onConfirm()" [class]="alert.type">{{ alert.confirmText || 'Aceptar'
+                }}</button>
+            } @else {
+            <button class="btn-confirm" (click)="onConfirm()" [class]="alert.type">Aceptar</button>
+            }
+        </div>
+    </div>
+</div>
+}

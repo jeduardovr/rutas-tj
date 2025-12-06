@@ -26,11 +26,53 @@ export class GeolocationService {
 
         return from(
             new Promise<GeolocationPosition>((resolve, reject) => {
-                navigator.geolocation.getCurrentPosition(resolve, reject, {
+                const options = {
                     enableHighAccuracy: true,
-                    timeout: 10000,
+                    timeout: 20000,
                     maximumAge: 0
-                });
+                };
+
+                let bestPosition: GeolocationPosition | null = null;
+                let watchId: number;
+
+                // Timeout de seguridad: si no obtenemos una precisión excelente en 5s,
+                // devolvemos la mejor que tengamos.
+                const timeoutId = setTimeout(() => {
+                    navigator.geolocation.clearWatch(watchId);
+                    if (bestPosition) {
+                        console.log('Timeout de precisión agotado. Usando mejor posición:', bestPosition.coords.accuracy + 'm');
+                        resolve(bestPosition);
+                    } else {
+                        // Si no tenemos NADA, intentamos una última llamada directa o rechazamos
+                        navigator.geolocation.getCurrentPosition(resolve, reject, options);
+                    }
+                }, 5000);
+
+                watchId = navigator.geolocation.watchPosition(
+                    (position) => {
+                        // Si es la primera o tiene mejor precisión, guardarla
+                        if (!bestPosition || position.coords.accuracy < bestPosition.coords.accuracy) {
+                            bestPosition = position;
+                        }
+
+                        // Si la precisión es muy buena (< 15 metros), terminamos temprano
+                        if (position.coords.accuracy <= 15) {
+                            console.log('Precisión excelente alcanzada:', position.coords.accuracy + 'm');
+                            clearTimeout(timeoutId);
+                            navigator.geolocation.clearWatch(watchId);
+                            resolve(position);
+                        }
+                    },
+                    (error) => {
+                        // Si es un error de permisos, fallar inmediato. Si es timeout/unavailable, esperar un poco más si el timer sigue.
+                        if (error.code === error.PERMISSION_DENIED) {
+                            clearTimeout(timeoutId);
+                            navigator.geolocation.clearWatch(watchId);
+                            reject(error);
+                        }
+                    },
+                    options
+                );
             })
         ).pipe(
             map(position => {

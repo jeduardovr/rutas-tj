@@ -34,7 +34,7 @@
                 @if (authService.isLoggedIn() && authService.hasAccessToRoute('/admin-proposals')) {
                 <button class="nav-item" (click)="goToAdminProposals()" title="Administrar Propuestas">
                     <div class="nav-icon"><i class="fas fa-tasks"></i></div>
-                    <span class="nav-label">Propuestas</span>
+                    <span class="nav-label">Solicitud</span>
                 </button>
                 }
             </div>
@@ -111,13 +111,6 @@
                                 <span>{{ route.schedule.start || '--' }} - {{ route.schedule.end || '--' }}</span>
                             </div>
                             }
-
-                            @if (sortByProximity() && getRouteDistanceText(route)) {
-                            <div class="route-distance">
-                                <i class="fas fa-map-marker-alt"></i>
-                                <span>{{ getRouteDistanceText(route) }}</span>
-                            </div>
-                            }
                         </div>
 
                         <div class="route-action">
@@ -138,7 +131,7 @@
             <app-create-route style="overflow-y: auto;" *ngIf="viewMode() === 'creator'" [newRoute]="newRoute"
                 [isEditing]="isEditing()" [is24Hours]="is24Hours" [landmarksString]="landmarksString"
                 [pathLength]="getPathLength()" (saveRoute)="saveNewRoute()" (cancel)="onCancelCreateRoute()"
-                (undoPoint)="undoLastPoint()" (clearMap)="clearCreatorMap()"
+                (undoPoint)="undoLastPoint()" (removePoint)="removeCreatorPoint($event)" (clearMap)="clearCreatorMap()"
                 (updateColor)="updateCreatorPolylineStyle()"></app-create-route>
         </div>
     </aside>
@@ -150,9 +143,17 @@
     <main class="main-content">
         @if (authService.isLoggedIn()) {
         <div class="map-user-control fade-in">
-            <div class="user-avatar" title="{{ authService.currentUser()?.name }}">
-                {{ authService.currentUser()?.name?.charAt(0) || 'U' }}
+            <div class="user-capsule-float">
+                <div class="user-avatar-float" title="{{ authService.currentUser()?.name }}">
+                    {{ authService.currentUser()?.name?.charAt(0)?.toUpperCase() || 'U' }}
+                </div>
+                <div class="user-details-float">
+                    <span class="user-name-float">{{ authService.currentUser()?.name }}</span>
+                    <span class="user-role-float">{{ authService.getRoleName() || 'Usuario' }}</span>
+                </div>
             </div>
+
+            <!-- Botones de Acción flotantes (separados de la capsula para limpieza) -->
             @if (authService.hasAccessToRoute('/admin-proposals')) {
             <button class="btn-admin-proposals" (click)="goToAdminProposals()" title="Administrar Propuestas">
                 <i class="fas fa-tasks"></i>
@@ -169,7 +170,10 @@
         <div id="map-creator" class="map-container" [class.hidden]="viewMode() !== 'creator'"></div>
 
         @if (viewMode() === 'viewer' && selectedRoute()) {
-        <div class="info-card fade-in">
+        <div class="info-card fade-in" [class.collapsed]="isCardCollapsed()">
+            <!-- Handle for mobile -->
+            <div class="card-handle" (click)="toggleCardState()"></div>
+
             <div class="info-color-top" [style.background-color]="selectedRoute()?.color"></div>
 
             <div class="info-body">
@@ -179,6 +183,11 @@
                         <h2 class="info-title">{{ selectedRoute()?.from }} - {{ selectedRoute()?.to }}</h2>
                     </div>
                     <div class="info-actions">
+                        @if (authService.hasAccessToRoute('/admin-proposals')) {
+                        <button (click)="deleteSelectedRoute()" class="btn-icon-sm close" title="Eliminar ruta">
+                            <i class="fas fa-trash-alt"></i>
+                        </button>
+                        }
                         <button (click)="overrideStartEditing(selectedRoute()!)" class="btn-icon-sm"
                             title="Editar esta ruta">
                             <i class="fas fa-pencil-alt"></i>
@@ -207,5 +216,13 @@
             </div>
         </div>
         }
+        <div class="ad-container fade-in" *ngIf="viewMode() === 'viewer'">
+            <div class="ad-card">
+                <span class="ad-label">Publicidad</span>
+                <img src="https://placehold.co/300x100/3b82f6/white?text=Espacio+Publicitario" alt="Publicidad"
+                    class="ad-image">
+                <button class="ad-close-btn" title="Cerrar publicidad">&times;</button>
+            </div>
+        </div>
     </main>
 </div>

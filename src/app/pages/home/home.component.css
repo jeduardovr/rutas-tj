@@ -179,20 +179,87 @@
     width: 100%;
 }
 
-/* ESTILOS DE PERFIL DE USUARIO EN EL MAPA (FLOTANTE) */
+/* Floating User Capsule on Map */
 .map-user-control {
     position: absolute;
-    top: 1.5rem;
-    left: 1.5rem;
+    top: 70px;
+    /* Below the top bar/logo if present, or just top spacing */
+    left: 20px;
     z-index: 500;
+    pointer-events: none;
+}
+
+/* User Capsule (Pill Design) */
+.user-capsule-float {
+    pointer-events: auto;
     display: flex;
-    gap: 0.5rem;
     align-items: center;
+    text-align: center;
+    background: #ffffff;
+    /* Pure white */
+    border-radius: 9999px;
+    padding: 4px 10px 4px 4px;
+    /* Text padding right */
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    transition: all 0.2s ease;
+    border: 1px solid rgba(226, 232, 240, 0.8);
+}
+
+.user-capsule-float:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+}
+
+.user-avatar-float {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: #0f172a;
+    /* Dark Navy/Black */
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 400;
+    font-size: 20px;
+    flex-shrink: 0;
+}
+
+.user-details-float {
+    display: flex;
+    flex-direction: column;
+    margin-left: 6px;
+    justify-content: center;
+    text-shadow: none;
+    /* Removed text shadow */
+}
+
+.user-name-float {
+    color: #0f172a;
+    /* Dark Navy text */
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    line-height: 1.2;
+    border: none;
+    padding: 0;
+    margin: 0;
+}
+
+.user-role-float {
+    color: #475569;
+    /* Slate 600 */
+    font-size: 8px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-top: 2px;
 }
 
 .user-avatar {
-    width: 44px;
-    height: 44px;
+    width: 30px;
+    height: 30px;
     background: #38bdf8;
     color: #0f172a;
     border-radius: 50%;
@@ -220,6 +287,8 @@
     justify-content: center;
     font-size: 1.2rem;
     transition: all 0.2s;
+    pointer-events: auto;
+    /* Enable click events */
 }
 
 .btn-map-logout:hover {
@@ -242,6 +311,8 @@
     justify-content: center;
     font-size: 1.2rem;
     transition: all 0.2s;
+    pointer-events: auto;
+    /* Enable click events */
 }
 
 .btn-admin-proposals:hover {
@@ -322,7 +393,7 @@
     width: 100%;
     padding: 0.8rem 1rem 0.8rem 2.8rem;
     border: 1px solid #e2e8f0;
-    border-radius: 12px;
+    border-radius: 6px;
     outline: none;
     background: #f8fafc;
     font-size: 0.95rem;
@@ -339,7 +410,7 @@
 .btn-location {
     width: 44px;
     height: 44px;
-    border-radius: 12px;
+    border-radius: 6px;
     background: white;
     border: 1px solid #e2e8f0;
     color: #64748b;
@@ -378,7 +449,7 @@
 
 /* --- ROUTE LIST (MODERN CARDS) --- */
 .routes-list {
-    padding: 0 1rem 1rem 1rem;
+    padding: 0 1rem 1.5rem 1rem;
     gap: 1rem;
     display: flex;
     flex-direction: column;
@@ -391,18 +462,19 @@
     position: relative;
     display: flex;
     background: white;
-    border-radius: 12px;
+    border-radius: 6px;
     cursor: pointer;
-    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: all 0.2s ease-out;
     overflow: hidden;
-    border: 1px solid transparent;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
-    min-height: 110px;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.03);
+    min-height: auto;
 }
 
 .route-card:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.08);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 6px -4px rgba(0, 0, 0, 0.08);
+    border-color: #cbd5e1;
 }
 
 /* home.component.css */
@@ -410,20 +482,15 @@
 /* Estado Activo (Seleccionado) */
 .route-card.active {
     background-color: #ffffff;
-    /* Eliminamos el borde/sombra oscura fuerte */
-    border-color: transparent;
-    /* Usamos una sombra suave y difuminada para dar elevación */
-    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
-    /* Mantenemos la tarjeta ligeramente elevada */
-    transform: translateY(-3px);
-    /* Opcional: si quieres un borde sutil del color de la ruta, descomenta esto: */
-    /* border: 1px solid currentColor; */
+    border-color: #38bdf8;
+    box-shadow: 0 4px 12px rgba(56, 189, 248, 0.15);
+    transform: translateY(-2px);
 }
 
 /* Aseguramos que el hover sobre una activa no cambie la posición bruscamente */
 .route-card.active:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(56, 189, 248, 0.15);
 }
 
 /* Franja de color */
@@ -435,76 +502,79 @@
 
 .route-content {
     flex: 1;
-    padding: 1rem;
+    padding: 1rem 0.8rem 1rem 1rem;
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
+    gap: 0.4rem;
+    max-width: calc(100% - 6px);
 }
 
 .route-header {
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
+    gap: 0.5rem;
 }
 
 .route-title-group {
     display: flex;
     flex-direction: column;
-    gap: 0.4rem;
+    gap: 0.3rem;
     width: 100%;
 }
 
 .route-name {
     margin: 0;
-    font-size: 1.05rem;
+    font-size: 1rem;
     font-weight: 700;
-    color: #1e293b;
-    line-height: 1.2;
+    color: #0f172a;
+    line-height: 1.3;
+    white-space: normal;
+    word-break: break-word;
 }
 
 /* Badges */
 .route-type-badge {
     align-self: flex-start;
     font-size: 0.65rem;
-    text-transform: uppercase;
-    padding: 4px 8px;
-    border-radius: 6px;
-    font-weight: 700;
-    display: flex;
+    padding: 2px 8px;
+    border-radius: 99px;
+    /* Pill shape completo */
+    font-weight: 600;
+    display: inline-flex;
     align-items: center;
-    gap: 5px;
-    letter-spacing: 0.5px;
+    gap: 4px;
+    letter-spacing: 0.3px;
+    flex-shrink: 0;
 }
 
 .route-type-badge.taxi {
-    background: #fef9c3;
-    color: #854d0e;
+    background: #fffbeb;
+    color: #b45309;
+    border: 1px solid #fcd34d;
 }
 
 .route-type-badge.bus {
-    background: #dbeafe;
-    color: #1e40af;
+    background: #eff6ff;
+    color: #1d4ed8;
+    border: 1px solid #bfdbfe;
 }
 
 .route-type-badge.calafia {
-    background: #fce7f3;
-    color: #9d174d;
+    background: #fdf2f8;
+    color: #be185d;
+    border: 1px solid #fbcfe8;
 }
 
 /* home.component.css */
 
 /* Descripción corta de la ruta */
+/* Descripción */
 .route-desc-preview {
-    /* Color más oscuro para mejor contraste (Slate 600) */
-    color: #475569;
-    /* Un poco más grande */
-    font-size: 0.9rem;
-    /* Mejor interlineado para lectura */
-    line-height: 1.5;
-    /* Un poco más de margen vertical */
-    margin: 0.5rem 0;
-
-    /* Mantenemos el recorte a 2 líneas para que no ocupe mucho espacio */
+    color: #64748b;
+    font-size: 0.8rem;
+    line-height: 1.4;
+    margin: 0.2rem 0 0.4rem 0;
     display: -webkit-box;
     -webkit-line-clamp: 2;
     line-clamp: 2;
@@ -513,35 +583,52 @@
     text-overflow: ellipsis;
 }
 
+/* Schedule Pill Style */
 .route-schedule {
-    display: flex;
+    display: inline-flex;
     align-items: center;
-    gap: 0.5rem;
-    font-size: 0.85rem;
-    color: #64748b;
-    margin: 0.5rem 0;
-    padding: 0.4rem 0.6rem;
-    background: #f8fafc;
-    border-radius: 6px;
-    border-left: 3px solid #38bdf8;
+    gap: 0.4rem;
+    font-size: 0.75rem;
+    color: #475569;
+    /* Texto gris neutro */
+    margin-top: auto;
+    /* Empujar hacia abajo si hay espacio */
+    padding: 4px 10px;
+    background: #f1f5f9;
+    /* Fondo gris muy claro */
+    border-radius: 99px;
+    /* Pill shape */
+    border: 1px solid #e2e8f0;
+    width: fit-content;
+    font-weight: 500;
+    /* Eliminamos el border-left grueso */
 }
 
 .route-schedule i {
-    color: #38bdf8;
+    color: #94a3b8;
+    /* Icono sutil */
+    font-size: 0.8rem;
 }
 
 .route-distance {
-    display: flex;
+    display: inline-flex;
+    /* Cambiar a inline-flex para mejor adaptación */
     align-items: center;
     gap: 0.5rem;
-    font-size: 0.85rem;
+    font-size: 0.8rem;
     color: #059669;
-    margin: 0.5rem 0;
-    padding: 0.4rem 0.6rem;
+    margin: 0.25rem 0;
+    padding: 0.3rem 0.6rem;
     background: #f0fdf4;
     border-radius: 6px;
     border-left: 3px solid #10b981;
     font-weight: 600;
+    width: fit-content;
+    /* Asegurar que no ocupe todo el ancho */
+    max-width: 100%;
+    /* Evitar desbordamiento */
+    box-sizing: border-box;
+    /* Incluir padding en el ancho */
 }
 
 .route-distance i {
@@ -958,7 +1045,7 @@ select.form-input {
     right: 1.5rem;
     width: 340px;
     background: white;
-    border-radius: 16px;
+    border-radius: 6px;
     box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
     z-index: 1000;
     overflow: hidden;
@@ -1113,7 +1200,49 @@ select.form-input {
         bottom: 0;
         right: 0;
         left: 0;
-        border-radius: 20px 20px 0 0;
+        border-radius: 6px;
+        transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        max-height: 85vh;
+        /* Limitar altura máxima */
+    }
+
+    .info-card.collapsed {
+        transform: translateY(calc(100% - 80px));
+        /* Mostrar solo el encabezado */
+    }
+
+    /* Handle para indicar que se puede deslizar */
+    .card-handle {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 24px;
+        background: transparent;
+        z-index: 10;
+        cursor: pointer;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+
+    .card-handle::before {
+        content: '';
+        width: 40px;
+        height: 4px;
+        background-color: #e2e8f0;
+        border-radius: 4px;
+    }
+
+    /* Mostrar solo el handle y encabezado en colapsado */
+    .info-card::before {
+        display: none;
+        /* Usamos el .card-handle en su lugar */
+    }
+
+    .ad-container {
+        bottom: 90px;
+        /* Ajustar posición para que no quede detrás del card colapsado */
     }
 }
 
@@ -1160,4 +1289,102 @@ select.form-input {
     background-color: #f1f5f9;
     cursor: not-allowed;
     opacity: 0.6;
+}
+
+/* --- ADVERTISEMENT STYLES --- */
+.ad-container {
+    position: absolute;
+    bottom: 2rem;
+    /* Por defecto en escritorio */
+    left: 2rem;
+    z-index: 400;
+    /* Igual que los controles de Leaflet */
+    pointer-events: none;
+    /* Permitir clic en el mapa alrededor */
+    transition: all 0.3s ease;
+}
+
+.ad-card {
+    pointer-events: auto;
+    background: white;
+    padding: 0;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    position: relative;
+    border: 1px solid #e2e8f0;
+    width: 300px;
+    transition: transform 0.2s;
+}
+
+.ad-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+}
+
+.ad-label {
+    position: absolute;
+    top: 6px;
+    left: 8px;
+    background: rgba(0, 0, 0, 0.6);
+    color: white;
+    font-size: 0.6rem;
+    padding: 2px 6px;
+    border-radius: 4px;
+    text-transform: uppercase;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    z-index: 5;
+    pointer-events: none;
+}
+
+.ad-image {
+    width: 100%;
+    height: 100px;
+    object-fit: cover;
+    display: block;
+}
+
+.ad-close-btn {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    width: 20px;
+    height: 20px;
+    background: rgba(255, 255, 255, 0.9);
+    border: none;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+    line-height: 1;
+    color: #475569;
+    z-index: 10;
+    transition: all 0.2s;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.ad-close-btn:hover {
+    background: white;
+    color: #ef4444;
+    transform: scale(1.1);
+}
+
+/* Responsividad para móviles y cuando la sidebar está abierta */
+@media (max-width: 768px) {
+    .ad-container {
+        left: 50%;
+        transform: translateX(-50%);
+        bottom: 5rem;
+        width: 90%;
+        max-width: 350px;
+    }
+
+    .ad-card {
+        width: 100%;
+    }
 }
